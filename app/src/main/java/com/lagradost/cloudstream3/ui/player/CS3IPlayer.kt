@@ -670,6 +670,18 @@ class CS3IPlayer : IPlayer {
 
     companion object {
         private const val CRONET_TIMEOUT_MS = 15_000
+        private const val MAX_AUTOMATIC_TARGET_BUFFER_BYTES = 400L * 1024L * 1024L
+
+        /**
+         * Buffer size when the user has not picked one: what media3 uses for a video with
+         * audio and subtitles, or more if the heap has room for it.
+         */
+        private fun automaticTargetBufferBytes(): Int {
+            return (Runtime.getRuntime().maxMemory() * 2 / 5).coerceIn(
+                DefaultLoadControl.DEFAULT_MUXED_BUFFER_SIZE.toLong(),
+                MAX_AUTOMATIC_TARGET_BUFFER_BYTES
+            ).toInt()
+        }
 
         /**
          * Single shared engine, to minimize the overhead of maintaining many as:
@@ -1292,19 +1304,31 @@ class CS3IPlayer : IPlayer {
                 // Allows any seeking to be +- 0.3s to allow for faster seeking
                 .setSeekParameters(SeekParameters(toleranceBeforeUs, toleranceAfterUs))
                 .setLoadControl(
-                    MemoryAwareLoadControl(
-                        targetBufferBytes = if (cacheSize <= 0) {
-                            MemoryAwareLoadControl.automaticTargetBufferBytes()
-                        } else {
-                            if (cacheSize > Int.MAX_VALUE) Int.MAX_VALUE else cacheSize.toInt()
-                        },
-                        maxBufferMs = if (videoBufferMs <= 0) {
-                            DefaultLoadControl.DEFAULT_MAX_BUFFER_MS
-                        } else {
-                            videoBufferMs.toInt()
-                        },
-                        backBufferMs = 30000,
-                    )
+                    DefaultLoadControl.Builder()
+                        .setTargetBufferBytes(
+                            if (cacheSize <= 0) {
+                                automaticTargetBufferBytes()
+                            } else {
+                                if (cacheSize > Int.MAX_VALUE) Int.MAX_VALUE else cacheSize.toInt()
+                            }
+                        )
+                        .setBackBuffer(
+                            // The back buffer counts towards the target bytes and exoplayer
+                            // reads its length only once. On tv a 30s back buffer of a 4K remux
+                            // is larger than the whole target, which leaves nothing ahead
+                            if (isLayout(PHONE or EMULATOR)) 30000 else 0,
+                            true
+                        )
+                        .setBufferDurationsMs(
+                            DefaultLoadControl.DEFAULT_MIN_BUFFER_MS,
+                            if (videoBufferMs <= 0) {
+                                DefaultLoadControl.DEFAULT_MAX_BUFFER_MS
+                            } else {
+                                videoBufferMs.toInt()
+                            },
+                            DefaultLoadControl.DEFAULT_BUFFER_FOR_PLAYBACK_MS,
+                            DefaultLoadControl.DEFAULT_BUFFER_FOR_PLAYBACK_AFTER_REBUFFER_MS
+                        ).build()
                 )
 
         // Because "Java rules" the media3 team hates to do open classes so we have to copy paste the entire thing to add a custom extractor
