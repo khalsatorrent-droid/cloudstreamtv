@@ -670,6 +670,18 @@ class CS3IPlayer : IPlayer {
 
     companion object {
         private const val CRONET_TIMEOUT_MS = 15_000
+        private const val MAX_AUTOMATIC_TARGET_BUFFER_BYTES = 400L * 1024L * 1024L
+
+        /**
+         * Buffer size when the user has not picked one: what media3 uses for a video with
+         * audio and subtitles, or more if the heap has room for it.
+         */
+        private fun automaticTargetBufferBytes(): Int {
+            return (Runtime.getRuntime().maxMemory() * 2 / 5).coerceIn(
+                DefaultLoadControl.DEFAULT_MUXED_BUFFER_SIZE.toLong(),
+                MAX_AUTOMATIC_TARGET_BUFFER_BYTES
+            ).toInt()
+        }
 
         /**
          * Single shared engine, to minimize the overhead of maintaining many as:
@@ -783,7 +795,18 @@ class CS3IPlayer : IPlayer {
                     .enableQuic(true)
                     .setStoragePath(cacheDirectory.absolutePath)
                     .setLibraryLoader(null)
-                    .enableHttpCache(CronetEngine.Builder.HTTP_CACHE_DISK, diskCacheSize)
+                    .apply {
+                        // A size of 0 lets cronet pick its own disk cache size, which makes it
+                        // store video segments even when the user turned the disk cache off
+                        if (diskCacheSize > 0) {
+                            enableHttpCache(CronetEngine.Builder.HTTP_CACHE_DISK, diskCacheSize)
+                        } else {
+                            enableHttpCache(
+                                CronetEngine.Builder.HTTP_CACHE_DISK_NO_HTTP,
+                                1024L * 1024L
+                            )
+                        }
+                    }
                     .build().also { buildEngine ->
                         Log.d(
                             TAG,
@@ -1112,16 +1135,19 @@ class CS3IPlayer : IPlayer {
                         context.getString(R.string.software_decoding_key),
                         -1
                     )
-                    val isAudioOnly = current == 3 || current == 4
+                    // -1 = automatic
+                    // We do not want tv to have software video decoding, because of crashes.
+                    // Software audio is cheap, and without it tracks the device has no codec for
+                    // (DTS, TrueHD) are silent, so automatic on tv means HW+ (4)
+                    val isAutomaticTv = current !in 0..4 && !isLayout(PHONE or EMULATOR)
+                    val isAudioOnly = current == 3 || current == 4 || isAutomaticTv
                     val (isSoftwareDecodingEnabled, isSoftwareDecodingPreferred) = when (current) {
                         0 -> true to false // HW+SW, aka on but prefer hw
                         2 -> true to true // SW+HW, aka on but prefer sw
                         1 -> false to false // HW, aka off
                         3 -> true to true // HW+ but prefer sw audio
                         4 -> true to false // HW+ but prefer hw audio
-                        // -1 = automatic
-                        // We do not want tv to have software decoding, because of crashes
-                        else -> isLayout(PHONE or EMULATOR) to false
+                        else -> true to false
                     }
 
                     // Only create the compressor when the setting is actually enabled.
@@ -1281,13 +1307,16 @@ class CS3IPlayer : IPlayer {
                     DefaultLoadControl.Builder()
                         .setTargetBufferBytes(
                             if (cacheSize <= 0) {
-                                DefaultLoadControl.DEFAULT_TARGET_BUFFER_BYTES
+                                automaticTargetBufferBytes()
                             } else {
                                 if (cacheSize > Int.MAX_VALUE) Int.MAX_VALUE else cacheSize.toInt()
                             }
                         )
                         .setBackBuffer(
-                            30000,
+                            // The back buffer counts towards the target bytes and exoplayer
+                            // reads its length only once. On tv a 30s back buffer of a 4K remux
+                            // is larger than the whole target, which leaves nothing ahead
+                            if (isLayout(PHONE or EMULATOR)) 30000 else 0,
                             true
                         )
                         .setBufferDurationsMs(
@@ -1311,14 +1340,17 @@ class CS3IPlayer : IPlayer {
         val dataSourceFactory = if (onlineSource == null) {
             null
         } else {
-            if (simpleCache == null)
+            // A zero sized cache stores nothing, but still writes every byte of the stream to
+            // disk before evicting it, so only go through the cache when it has a size
+            if (simpleCache == null && simpleCacheSize > 0)
                 simpleCache = getCache(context, simpleCacheSize)
 
-            val cacheFactory = CacheDataSource.Factory().apply {
-                simpleCache?.let { setCache(it) }
-                setUpstreamDataSourceFactory(onlineSource)
-            }
-            cacheFactory
+            simpleCache?.let { cache ->
+                CacheDataSource.Factory().apply {
+                    setCache(cache)
+                    setUpstreamDataSourceFactory(onlineSource)
+                }
+            } ?: onlineSource
         }
 
         val defaultMediaSourceFactory = if (dataSourceFactory != null) {
