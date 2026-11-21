@@ -357,6 +357,9 @@ class HomeViewModel : ViewModel() {
                         }
                     }
 
+                    // Show the rows now, the preview below has to load 3 more pages first
+                    _page.postValue(Resource.Success(expandable))
+
                     val items = data.value.mapNotNull { it?.items }.flatten()
 
 
@@ -396,7 +399,6 @@ class HomeViewModel : ViewModel() {
                     } else {
                         _preview.postValue(Resource.Success((previewResponsesAdded.size < currentShuffledList.size) to previewResponses))
                     }
-                    _page.postValue(Resource.Success(expandable))
                 } catch (e: Exception) {
                     _randomItems.postValue(emptyList())
                     logError(e)

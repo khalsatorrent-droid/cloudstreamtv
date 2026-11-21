@@ -127,6 +127,9 @@ open class ParentItemAdapter(
             )
             homeChildMoreInfo.text = info.name
 
+            // The holder is reused, without this every bind stacks one more listener that
+            // expands the row it was bound to before
+            homeChildRecyclerview.clearOnScrollListeners()
             homeChildRecyclerview.addOnScrollListener(object :
                 RecyclerView.OnScrollListener() {
                 var expandCount = 0

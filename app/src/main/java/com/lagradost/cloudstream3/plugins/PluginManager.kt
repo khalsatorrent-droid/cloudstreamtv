@@ -39,6 +39,8 @@ import com.lagradost.cloudstream3.TvType
 import com.lagradost.cloudstream3.actions.VideoClickAction
 import com.lagradost.cloudstream3.actions.VideoClickActionHolder
 import com.lagradost.cloudstream3.amap
+import com.lagradost.cloudstream3.utils.amapLimited
+import com.lagradost.cloudstream3.utils.cpuBoundConcurrency
 import com.lagradost.cloudstream3.mvvm.debugPrint
 import com.lagradost.cloudstream3.mvvm.logError
 import com.lagradost.cloudstream3.mvvm.safe
@@ -463,8 +465,8 @@ object PluginManager {
     suspend fun ___DO_NOT_CALL_FROM_A_PLUGIN_loadAllOnlinePlugins(context: Context) {
         assertNonRecursiveCallstack()
 
-        // Load all plugins as fast as possible!
-        (getPluginsOnline()).toList().amap { pluginData ->
+        // Load all plugins as fast as possible, without taking every core from the ui
+        (getPluginsOnline()).toList().amapLimited(cpuBoundConcurrency) { pluginData ->
             loadPlugin(
                 context,
                 File(pluginData.filePath),
@@ -535,7 +537,7 @@ object PluginManager {
         // Make sure all local plugins are fully refreshed.
         removeKey(PLUGINS_KEY_LOCAL)
 
-        sortedPlugins?.sortedBy { it.name }?.amap { file ->
+        sortedPlugins?.sortedBy { it.name }?.amapLimited(cpuBoundConcurrency) { file ->
             try {
                 val destinationFile = File(pluginDirectory, file.name)
 

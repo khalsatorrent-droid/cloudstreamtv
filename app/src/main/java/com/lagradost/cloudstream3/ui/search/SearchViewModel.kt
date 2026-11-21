@@ -10,7 +10,7 @@ import com.lagradost.cloudstream3.CloudStreamApp.Companion.getKeys
 import com.lagradost.cloudstream3.CloudStreamApp.Companion.setKey
 import com.lagradost.cloudstream3.HomePageList
 import com.lagradost.cloudstream3.SearchResponse
-import com.lagradost.cloudstream3.amap
+import com.lagradost.cloudstream3.utils.amapLimited
 import com.lagradost.cloudstream3.mvvm.Resource
 import com.lagradost.cloudstream3.mvvm.debugAssert
 import com.lagradost.cloudstream3.mvvm.debugWarning
@@ -31,6 +31,9 @@ data class ExpandableSearchList(
 )
 
 const val SEARCH_HISTORY_KEY = "search_history"
+
+/** Searching every installed extension at once starves the ui on tv sticks */
+private const val MAX_CONCURRENT_SEARCHES = 10
 
 class SearchViewModel : ViewModel() {
     private val _searchResponse: MutableLiveData<Resource<ExpandableSearchList>> =
@@ -231,9 +234,11 @@ class SearchViewModel : ViewModel() {
             withContext(Dispatchers.IO) { // This interrupts UI otherwise
                 repos.filter { a ->
                     (ignoreSettings || (providersActive.isEmpty() || providersActive.contains(a.name))) && (!isQuickSearch || a.hasQuickSearch)
-                }.amap { a -> // Parallel
+                }.amapLimited(MAX_CONCURRENT_SEARCHES) { a -> // Parallel
+                    // Skip the request if a newer search started while this one was queued
+                    if (currentSearchIndex != currentIndex) return@amapLimited
                     val search = if (isQuickSearch) a.quickSearch(query) else a.search(query, 1)
-                    if (currentSearchIndex != currentIndex) return@amap
+                    if (currentSearchIndex != currentIndex) return@amapLimited
                     if (search is Resource.Success) {
                         val searchValue = search.value
                         expandableSearches[a.name] =
