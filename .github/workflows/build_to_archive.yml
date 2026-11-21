@@ -18,6 +18,8 @@ concurrency:
 
 jobs:
   build:
+    # Needs the upstream secrets, which forks do not have
+    if: github.repository == 'recloudstream/cloudstream'
     runs-on: ubuntu-latest
     steps:
     - name: Generate access token

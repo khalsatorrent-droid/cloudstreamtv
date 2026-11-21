@@ -95,6 +95,12 @@ data class ResizedEvent(
     override val source: PlayerEventSource = PlayerEventSource.Player,
 ) : PlayerEvent()
 
+/** Event when the decoder gets a video format that reports its frame rate, used for frame rate matching */
+data class FrameRateEvent(
+    val frameRate: Float,
+    override val source: PlayerEventSource = PlayerEventSource.Player,
+) : PlayerEvent()
+
 /** Event when the player status update, along with the previous status (for animation)*/
 data class StatusEvent(
     val wasPlaying: CSPlayerLoading,

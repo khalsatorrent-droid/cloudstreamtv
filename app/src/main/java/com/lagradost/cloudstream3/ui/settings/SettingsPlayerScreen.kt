@@ -189,6 +189,13 @@ object SettingsPlayerScreen : SearchableSettings {
                         ).toMap()
                     ),
                     Preference.PreferenceItem.SwitchPreference(
+                        preference = settings.player.matchFrameRate,
+                        enabled = isLayout(TV or EMULATOR),
+                        title = stringResource(R.string.match_frame_rate_settings),
+                        subtitle = stringResource(R.string.match_frame_rate_settings_des),
+                        icon = painterResource(R.drawable.ic_baseline_speed_24),
+                    ),
+                    Preference.PreferenceItem.SwitchPreference(
                         preference = settings.player.extraBrightnessEnabled,
                         title = stringResource(R.string.extra_brightness_settings),
                         subtitle = stringResource(R.string.extra_brightness_settings_des),

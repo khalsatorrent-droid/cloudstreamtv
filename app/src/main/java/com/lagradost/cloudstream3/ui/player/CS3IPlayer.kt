@@ -677,10 +677,15 @@ class CS3IPlayer : IPlayer {
          * audio and subtitles, or more if the heap has room for it.
          */
         private fun automaticTargetBufferBytes(): Int {
-            return (Runtime.getRuntime().maxMemory() * 2 / 5).coerceIn(
+            val maxHeap = Runtime.getRuntime().maxMemory()
+            return (maxHeap * 2 / 5).coerceIn(
                 DefaultLoadControl.DEFAULT_MUXED_BUFFER_SIZE.toLong(),
                 MAX_AUTOMATIC_TARGET_BUFFER_BYTES
-            ).toInt()
+            )
+                // The media3 default is about 144 MB, which is more than half of the heap on a
+                // 1.5 GB stick, and the buffer is the one thing that must not run out of memory
+                .coerceAtMost(maxHeap / 2)
+                .toInt()
         }
 
         /**
@@ -2089,6 +2094,10 @@ class CS3IPlayer : IPlayer {
             format: Format,
             decoderReuseEvaluation: DecoderReuseEvaluation?
         ) {
+            // Fires before the first frame is shown, so the display can switch while buffering
+            if (format.frameRate > 0f) {
+                event(FrameRateEvent(format.frameRate))
+            }
             event(TracksChangedEvent())
         }
 

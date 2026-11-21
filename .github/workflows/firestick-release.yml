@@ -1,0 +1,129 @@
+name: Firestick Release
+
+# Builds the signed pre-release APK and publishes it as the rolling "pre-release" release.
+# The in-app updater (utils/InAppUpdater.kt) reads that release, so installed builds
+# offer the new version on their own.
+#
+# Signing: uses the repository secrets SIGNING_KEYSTORE_B64, SIGNING_STORE_PASSWORD,
+# SIGNING_KEY_ALIAS and SIGNING_KEY_PASSWORD when they exist, otherwise the sideload key
+# in ci/sideload.jks.b64. Keep using the same key, Android refuses to update an app that
+# was signed with a different one.
+
+on:
+  push:
+    branches: [ master, 'claude/**' ]
+    paths-ignore:
+      - '*.md'
+      - '*.json'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: "firestick-release"
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v6
+      with:
+        fetch-depth: 30
+
+    - name: Skip if this commit is already released
+      id: released
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        TAG_SHA="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/pre-release" --jq '.object.sha' 2>/dev/null || true)"
+        if [ "${TAG_SHA}" = "${GITHUB_SHA}" ] && [ "${{ github.event_name }}" != "workflow_dispatch" ]; then
+          echo "pre-release already points at ${GITHUB_SHA}, nothing to do"
+          echo "skip=true" >> "$GITHUB_OUTPUT"
+        fi
+
+    - name: Set up JDK 17
+      if: steps.released.outputs.skip != 'true'
+      uses: actions/setup-java@v5
+      with:
+        distribution: temurin
+        java-version: 17
+
+    - name: Grant execute permission for gradlew
+      if: steps.released.outputs.skip != 'true'
+      run: chmod +x gradlew
+
+    # app/build.gradle.kts reads the keystore from ~/work/_temp/keystore/ (the runner temp dir)
+    # and the passwords from SIGNING_* when SIGNING_KEY_ALIAS is set.
+    - name: Prepare signing key
+      if: steps.released.outputs.skip != 'true'
+      env:
+        SECRET_KEYSTORE_B64: ${{ secrets.SIGNING_KEYSTORE_B64 }}
+        SECRET_STORE_PASSWORD: ${{ secrets.SIGNING_STORE_PASSWORD }}
+        SECRET_KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
+        SECRET_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
+      run: |
+        mkdir -p "${RUNNER_TEMP}/keystore"
+        KEYSTORE="${RUNNER_TEMP}/keystore/prerelease_keystore.keystore"
+        if [ -n "${SECRET_KEYSTORE_B64}" ]; then
+          echo "Signing with the key from the repository secrets"
+          echo "${SECRET_KEYSTORE_B64}" | base64 -d > "${KEYSTORE}"
+          STORE_PASSWORD="${SECRET_STORE_PASSWORD}"
+          KEY_ALIAS="${SECRET_KEY_ALIAS}"
+          KEY_PASSWORD="${SECRET_KEY_PASSWORD}"
+        else
+          echo "Signing with the sideload key in ci/sideload.jks.b64"
+          base64 -d ci/sideload.jks.b64 > "${KEYSTORE}"
+          STORE_PASSWORD="cloudstreamtv-sideload"
+          KEY_ALIAS="sideload"
+          KEY_PASSWORD="cloudstreamtv-sideload"
+        fi
+        {
+          echo "SIGNING_STORE_PASSWORD=${STORE_PASSWORD}"
+          echo "SIGNING_KEY_ALIAS=${KEY_ALIAS}"
+          echo "SIGNING_KEY_PASSWORD=${KEY_PASSWORD}"
+        } >> "$GITHUB_ENV"
+
+    - name: Setup Gradle
+      if: steps.released.outputs.skip != 'true'
+      uses: gradle/actions/setup-gradle@v5
+
+    - name: Test and build
+      if: steps.released.outputs.skip != 'true'
+      run: ./gradlew :app:testPrereleaseDebugUnitTest --tests "com.lagradost.cloudstream3.ui.player.FrameRateMatcherTest" assemblePrereleaseRelease
+
+    - name: Check the APK is signed
+      if: steps.released.outputs.skip != 'true'
+      id: apk
+      run: |
+        APK="$(ls app/build/outputs/apk/prerelease/release/*.apk | head -n 1)"
+        APKSIGNER="$(ls "${ANDROID_HOME}"/build-tools/*/apksigner | sort -V | tail -n 1)"
+        "${APKSIGNER}" verify --print-certs "${APK}"
+        SHORT="${GITHUB_SHA::7}"
+        OUT="cloudstream-firestick-4k-${SHORT}.apk"
+        cp "${APK}" "${OUT}"
+        echo "file=${OUT}" >> "$GITHUB_OUTPUT"
+        echo "short=${SHORT}" >> "$GITHUB_OUTPUT"
+
+    - name: Publish release
+      if: steps.released.outputs.skip != 'true'
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        {
+          echo "Fire TV Stick 4K / 4K Max build of CloudStream (${{ steps.apk.outputs.short }})."
+          echo
+          echo "Installs next to the original app as \`com.lagradost.cloudstream3.prerelease\`, and updates itself from this release."
+          echo
+          echo "### Latest changes"
+          git log -n 10 --pretty='- %s'
+        } > release-notes.md
+
+        # The tag moves with every build, the updater compares its commit with the installed one
+        gh release delete pre-release --cleanup-tag --yes 2>/dev/null || true
+        gh release create pre-release "${{ steps.apk.outputs.file }}" \
+          --prerelease \
+          --target "${GITHUB_SHA}" \
+          --title "Firestick 4K build ${{ steps.apk.outputs.short }}" \
+          --notes-file release-notes.md

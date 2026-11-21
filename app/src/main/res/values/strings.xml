@@ -368,6 +368,8 @@
     <string name="pref_category_actions">Actions</string>
     <string name="pref_category_cache">Cache</string>
     <string name="pref_category_android_tv">Android TV</string>
+    <string name="match_frame_rate_settings">Match frame rate</string>
+    <string name="match_frame_rate_settings_des">Switch the TV to the refresh rate of the video (24, 25, 30, 50 or 60 Hz) to avoid judder. The screen goes black for a moment when it changes</string>
     <string name="pref_category_gestures">Gestures</string>
     <string name="pref_category_security">Security</string>
     <string name="pref_category_accounts">Accounts</string>
