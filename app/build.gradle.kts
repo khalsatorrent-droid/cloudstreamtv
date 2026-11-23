@@ -236,6 +236,9 @@ dependencies {
     implementation(libs.kotlinx.collections.immutable)
     implementation(libs.kotlinx.serialization.json) // JSON Parser
 
+    // Installs the baseline profile on sideloaded builds, where the store does not
+    implementation(libs.profileinstaller)
+
     // Design & UI
     implementation(libs.preference.ktx)
     implementation(libs.material)

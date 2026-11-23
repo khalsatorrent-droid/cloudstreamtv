@@ -1,0 +1,30 @@
+# Hand written baseline profile for the Firestick build. It lists the screens that are
+# opened on every launch, so they are compiled when the app is installed instead of being
+# interpreted on a slow CPU. Rules are Hot, Startup, Post startup methods plus their classes.
+# Regenerate with a Macrobenchmark if the start up path changes a lot.
+
+# App start
+HSPLcom/lagradost/cloudstream3/CloudStreamApp;->**(**)**
+HSPLcom/lagradost/cloudstream3/MainActivity;->**(**)**
+HSPLcom/lagradost/cloudstream3/MainActivity$*;->**(**)**
+Lcom/lagradost/cloudstream3/CloudStreamApp;
+Lcom/lagradost/cloudstream3/MainActivity;
+Lcom/lagradost/cloudstream3/MainActivity$*;
+
+# Home, search and the title page, the screens that scroll
+HSPLcom/lagradost/cloudstream3/ui/home/**;->**(**)**
+HSPLcom/lagradost/cloudstream3/ui/search/**;->**(**)**
+HSPLcom/lagradost/cloudstream3/ui/result/**;->**(**)**
+HSPLcom/lagradost/cloudstream3/ui/BaseAdapter**;->**(**)**
+Lcom/lagradost/cloudstream3/ui/home/**;
+Lcom/lagradost/cloudstream3/ui/search/**;
+Lcom/lagradost/cloudstream3/ui/result/**;
+Lcom/lagradost/cloudstream3/ui/BaseAdapter**;
+
+# Player start, so the first frame does not wait for the interpreter
+HSPLcom/lagradost/cloudstream3/ui/player/**;->**(**)**
+Lcom/lagradost/cloudstream3/ui/player/**;
+
+# Image loading, used by every poster
+HSPLcom/lagradost/cloudstream3/utils/ImageModuleCoil**;->**(**)**
+Lcom/lagradost/cloudstream3/utils/ImageModuleCoil**;
