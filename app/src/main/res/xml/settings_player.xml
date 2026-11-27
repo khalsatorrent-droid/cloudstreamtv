@@ -205,12 +205,6 @@
         android:title="@string/pref_category_android_tv">
         <SwitchPreference
             android:icon="@drawable/ic_baseline_speed_24"
-            android:summary="@string/match_frame_rate_settings_des"
-            android:title="@string/match_frame_rate_settings"
-            app:defaultValue="true"
-            app:key="@string/match_frame_rate_key" />
-        <SwitchPreference
-            android:icon="@drawable/ic_baseline_speed_24"
             android:summary="@string/tunneled_playback_settings_des"
             android:title="@string/tunneled_playback_settings"
             app:defaultValue="true"

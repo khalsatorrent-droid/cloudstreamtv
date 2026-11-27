@@ -674,10 +674,10 @@ class CS3IPlayer : IPlayer {
      * as buffering. So playback waits until the display reports the new mode (or a few seconds
      * have passed) and then continues.
      */
-    fun holdForDisplaySwitch(context: Context) {
-        val held = exoPlayer ?: return
-        if (!held.playWhenReady) return
-        val displayManager = context.getSystemService(DisplayManager::class.java) ?: return
+    fun holdForDisplaySwitch(context: Context, onDone: () -> Unit = {}) {
+        val held = exoPlayer ?: return onDone()
+        if (!held.playWhenReady) return onDone()
+        val displayManager = context.getSystemService(DisplayManager::class.java) ?: return onDone()
         val handler = Handler(Looper.getMainLooper())
         var finished = false
         lateinit var listener: DisplayManager.DisplayListener
@@ -687,6 +687,7 @@ class CS3IPlayer : IPlayer {
             displayManager.unregisterDisplayListener(listener)
             // The player may have been released or replaced while waiting
             if (exoPlayer === held && !held.playWhenReady) held.playWhenReady = true
+            onDone()
         }
         listener = object : DisplayManager.DisplayListener {
             override fun onDisplayChanged(displayId: Int) {
