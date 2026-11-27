@@ -28,3 +28,25 @@ Lcom/lagradost/cloudstream3/ui/player/**;
 # Image loading, used by every poster
 HSPLcom/lagradost/cloudstream3/utils/ImageModuleCoil**;->**(**)**
 Lcom/lagradost/cloudstream3/utils/ImageModuleCoil**;
+
+# Launcher activity and account picker, the very first screen on every start
+HSPLcom/lagradost/cloudstream3/ui/account/**;->**(**)**
+Lcom/lagradost/cloudstream3/ui/account/**;
+HSPLcom/lagradost/cloudstream3/CommonActivity;->**(**)**
+Lcom/lagradost/cloudstream3/CommonActivity;
+HSPLcom/lagradost/cloudstream3/ui/settings/Globals;->**(**)**
+Lcom/lagradost/cloudstream3/ui/settings/Globals;
+
+# Helpers every screen goes through (settings store, focus, image and json helpers)
+HSPLcom/lagradost/cloudstream3/utils/**;->**(**)**
+Lcom/lagradost/cloudstream3/utils/**;
+
+# Network and json parsing of extension responses, which runs while the home rows load
+HSPLcom/lagradost/nicehttp/**;->**(**)**
+Lcom/lagradost/nicehttp/**;
+HSPLcom/fasterxml/jackson/databind/**;->**(**)**
+Lcom/fasterxml/jackson/databind/**;
+HSPLcom/fasterxml/jackson/core/**;->**(**)**
+Lcom/fasterxml/jackson/core/**;
+HSPLcom/fasterxml/jackson/module/kotlin/**;->**(**)**
+Lcom/fasterxml/jackson/module/kotlin/**;

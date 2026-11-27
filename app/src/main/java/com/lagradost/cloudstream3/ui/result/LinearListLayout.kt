@@ -199,6 +199,22 @@ open class LinearListLayout(context: Context?) :
         }
     }
 
+    /**
+     * On TV the D-pad moves one item at a time, and when the next item is not laid out yet
+     * [onInterceptFocusSearch] can only scroll to it and drop that key press, which reads as a
+     * stutter when holding a direction. Laying out half a screen more on each side means the
+     * next posters already exist (and their images are loading) before the focus gets there.
+     */
+    override fun calculateExtraLayoutSpace(state: RecyclerView.State, extraLayoutSpace: IntArray) {
+        if (!isLayout(TV)) {
+            super.calculateExtraLayoutSpace(state, extraLayoutSpace)
+            return
+        }
+        val extra = (if (orientation == HORIZONTAL) width else height) / 2
+        extraLayoutSpace[0] = extra
+        extraLayoutSpace[1] = extra
+    }
+
     override fun requestChildRectangleOnScreen(
         parent: RecyclerView,
         child: View,

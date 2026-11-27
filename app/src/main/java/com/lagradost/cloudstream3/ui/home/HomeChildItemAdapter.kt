@@ -162,7 +162,10 @@ open class HomeChildItemAdapter(
         // The vast majority of the lag comes from creating the view
         // This simply shares the views between all HomeChildItemAdapter
         val sharedPool =
-            newSharedPool { setMaxRecycledViews(CONTENT, 20) }
+            // A TV screen shows 3-4 rows of about 8 posters, and with the extra layout space of
+            // LinearListLayout each row keeps a screen more. With only 20 spare views, moving
+            // between rows inflated new posters on every press
+            newSharedPool { setMaxRecycledViews(CONTENT, 48) }
 
         var minPosterSize: Int = 0
         var maxPosterSize: Int = 0
