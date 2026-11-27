@@ -114,6 +114,13 @@ android {
         // Reads local.properties
         val localProperties = gradleLocalProperties(rootDir, project.providers)
 
+        // An unset GitHub secret is an empty variable, and a missing key used to end up in the
+        // app as the text "null". Both are now an empty key, which the app reports as not set up
+        fun apiKey(env: String, property: String): String =
+            System.getenv(env)?.takeIf { it.isNotBlank() }
+                ?: localProperties[property]?.toString()?.takeIf { it.isNotBlank() }
+                ?: ""
+
         buildConfigField(
             "long",
             "BUILD_DATE",
@@ -122,22 +129,22 @@ android {
         buildConfigField(
             "String",
             "SIMKL_CLIENT_ID",
-            "\"" + (System.getenv("SIMKL_CLIENT_ID") ?: localProperties["simkl.id"]) + "\""
+            "\"" + apiKey("SIMKL_CLIENT_ID", "simkl.id") + "\""
         )
         buildConfigField(
             "String",
             "SIMKL_CLIENT_SECRET",
-            "\"" + (System.getenv("SIMKL_CLIENT_SECRET") ?: localProperties["simkl.secret"]) + "\""
+            "\"" + apiKey("SIMKL_CLIENT_SECRET", "simkl.secret") + "\""
         )
         buildConfigField(
             "String",
             "MAL_KEY",
-            "\"" + (System.getenv("MAL_KEY") ?: localProperties["mal.key"]) + "\""
+            "\"" + apiKey("MAL_KEY", "mal.key") + "\""
         )
         buildConfigField(
             "String",
             "ANILIST_KEY",
-            "\"" + (System.getenv("ANILIST_KEY") ?: localProperties["anilist.key"]) + "\""
+            "\"" + apiKey("ANILIST_KEY", "anilist.key") + "\""
         )
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

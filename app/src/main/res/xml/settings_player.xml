@@ -209,6 +209,12 @@
             android:title="@string/match_frame_rate_settings"
             app:defaultValue="true"
             app:key="@string/match_frame_rate_key" />
+        <SwitchPreference
+            android:icon="@drawable/ic_baseline_speed_24"
+            android:summary="@string/tunneled_playback_settings_des"
+            android:title="@string/tunneled_playback_settings"
+            app:defaultValue="true"
+            app:key="@string/tunneled_playback_key" />
         <SeekBarPreference
             android:defaultValue="10"
             android:max="60"

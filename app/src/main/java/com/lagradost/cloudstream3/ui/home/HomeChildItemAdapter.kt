@@ -58,9 +58,6 @@ class ResumeItemAdapter(
     // As there is no popup on TV we instead use the footer to clear
     override val footers = if (isLayout(TV or EMULATOR)) 1 else 0
 
-    // The clear tile is not the "See all" tile of the other rows
-    override fun customFooterViewType(): Int = 0
-
     override fun onCreateFooter(parent: ViewGroup): ViewHolderState<Boolean> {
         val expanded = parent.context.isBottomLayout()
         val inflater = LayoutInflater.from(parent.context)
@@ -130,27 +127,28 @@ open class HomeChildItemAdapter(
     var hasNext: Boolean = false
 
     /**
-     * On TV the row title can not be focused, so the "See all" tile at the end of the row is
-     * the way to open the whole category as a grid (which also loads the next pages).
+     * On TV the row title can not be focused, so a "See all" tile is the way to open the whole
+     * category as a grid (which also loads the next pages). It is the first tile of the row,
+     * because rows that keep loading pages (live channels) never reach an end tile.
      */
     var expandRowCallback: (() -> Unit)? = null
 
-    override val footers = if (showExpandTile && isLayout(TV or EMULATOR)) 1 else 0
+    override val headers = if (showExpandTile && isLayout(TV or EMULATOR)) 1 else 0
 
-    // Its own view type, so the shared pool never hands it to the resume row as its clear tile
-    override fun customFooterViewType(): Int = EXPAND_TILE_VIEW_TYPE
-
-    override fun onCreateFooter(parent: ViewGroup): ViewHolderState<Boolean> {
+    override fun onCreateHeader(parent: ViewGroup): ViewHolderState<Boolean> {
         val binding = HomeExpandGridBinding.inflate(LayoutInflater.from(parent.context), parent, false)
         return HomeScrollViewHolderState(binding)
     }
 
-    override fun onBindFooter(holder: ViewHolderState<Boolean>) {
+    override fun onBindHeader(holder: ViewHolderState<Boolean>) {
         val binding = holder.view as? HomeExpandGridBinding ?: return
         updateLayoutParms(binding.backgroundCard, setWidth, setHeight)
         holder.itemView.apply {
+            // Entering the row focuses the first poster, not this tile, see LinearListLayout
+            tag = EXPAND_TILE_TAG
             isFocusableInTouchMode = isLayout(TV)
             isFocusable = true
+            nextFocusLeftId = R.id.nav_rail_view
             nextFocusUp?.let { nextFocusUpId = it }
             nextFocusDown?.let { nextFocusDownId = it }
             setOnClickListener { expandRowCallback?.invoke() }
@@ -195,7 +193,8 @@ open class HomeChildItemAdapter(
     }
 
     companion object {
-        private const val EXPAND_TILE_VIEW_TYPE = 1
+        /** Tag of the "See all" tile, so focus can skip it when entering a row */
+        const val EXPAND_TILE_TAG = "home_expand_tile"
 
         // The vast majority of the lag comes from creating the view
         // This simply shares the views between all HomeChildItemAdapter
