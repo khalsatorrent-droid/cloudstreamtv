@@ -465,6 +465,31 @@ class PlayerView @JvmOverloads constructor(
         player.onResume(ctx)
     }
 
+    /** A black screen with a loading circle over the video, see the FrameRateEvent handling */
+    private fun showDisplaySwitchCover(): android.view.View? {
+        val overlay = exoPlayerView?.overlayFrameLayout ?: return null
+        val ctx = overlay.context
+        val cover = android.widget.FrameLayout(ctx).apply {
+            setBackgroundColor(android.graphics.Color.BLACK)
+            addView(
+                android.widget.ProgressBar(ctx),
+                android.widget.FrameLayout.LayoutParams(
+                    android.view.ViewGroup.LayoutParams.WRAP_CONTENT,
+                    android.view.ViewGroup.LayoutParams.WRAP_CONTENT,
+                    android.view.Gravity.CENTER
+                )
+            )
+        }
+        overlay.addView(
+            cover,
+            android.widget.FrameLayout.LayoutParams(
+                android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+                android.view.ViewGroup.LayoutParams.MATCH_PARENT
+            )
+        )
+        return cover
+    }
+
     /** Releases all player resources. */
     fun release() {
         player.release()
@@ -794,7 +819,12 @@ class PlayerView @JvmOverloads constructor(
             is FrameRateEvent -> {
                 val activity = context.getActivity()
                 if (FrameRateMatcher.onVideoFrameRate(activity, event.frameRate) && activity != null) {
-                    (player as? CS3IPlayer)?.holdForDisplaySwitch(activity)
+                    // Like NuvioTV: the switch happens behind a black loading screen, so the
+                    // TV's blank looks like part of loading instead of a flash after the picture
+                    val cover = showDisplaySwitchCover()
+                    (player as? CS3IPlayer)?.holdForDisplaySwitch(activity) {
+                        cover?.let { (it.parent as? android.view.ViewGroup)?.removeView(it) }
+                    } ?: cover?.let { (it.parent as? android.view.ViewGroup)?.removeView(it) }
                 }
             }
             is PlayerAttachedEvent -> playerUpdated(event.player)

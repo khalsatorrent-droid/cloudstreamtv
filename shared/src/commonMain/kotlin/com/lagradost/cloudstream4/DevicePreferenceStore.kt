@@ -175,7 +175,8 @@ class PlayerPreferences(preferences: PreferenceStore) {
     val rotateButtonEnabled = preferences.getBoolean("rotate_video_key", false)
     val previewBarEnabled = preferences.getBoolean("preview_seekbar_key", true)
     val softwareDecoding = preferences.getInt("software_decoding_key2", -1)
-    val matchFrameRate = preferences.getBoolean("match_frame_rate_key", true)
+    // 0 off (default, like NuvioTV), 1 on start, 2 on start and stop. See FrameRateMatcher
+    val matchFrameRateMode = preferences.getInt("match_frame_rate_mode_key", 0)
     val tunneledPlayback = preferences.getBoolean("tunneled_playback_key", true)
     val extraBrightnessEnabled = preferences.getBoolean("extra_brightness_enabled", false)
     val swipeHorizontalEnabled = preferences.getBoolean("swipe_enabled_key", true)

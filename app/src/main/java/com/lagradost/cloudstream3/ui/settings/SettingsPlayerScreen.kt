@@ -188,12 +188,19 @@ object SettingsPlayerScreen : SearchableSettings {
                             stringArrayResource(R.array.software_decoding_switch)
                         ).toMap()
                     ),
-                    Preference.PreferenceItem.SwitchPreference(
-                        preference = settings.player.matchFrameRate,
+                    Preference.PreferenceItem.ListPreference(
+                        preference = settings.player.matchFrameRateMode,
                         enabled = isLayout(TV or EMULATOR),
                         title = stringResource(R.string.match_frame_rate_settings),
                         subtitle = stringResource(R.string.match_frame_rate_settings_des),
                         icon = painterResource(R.drawable.ic_baseline_speed_24),
+                        // On start keeps the mode after the video, so the next one at the same
+                        // frame rate needs no switch. On start and stop puts the TV back after
+                        entries = mapOf(
+                            0 to stringResource(R.string.match_frame_rate_off),
+                            1 to stringResource(R.string.match_frame_rate_on_start),
+                            2 to stringResource(R.string.match_frame_rate_on_start_stop),
+                        )
                     ),
                     Preference.PreferenceItem.SwitchPreference(
                         preference = settings.player.tunneledPlayback,

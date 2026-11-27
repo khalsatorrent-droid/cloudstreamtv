@@ -125,12 +125,17 @@ object FrameRateMatcher {
         refreshRate = refreshRate
     )
 
-    fun isEnabled(context: Context): Boolean {
+    private const val MODE_OFF = 0
+    private const val MODE_ON_START = 1
+
+    private fun mode(context: Context): Int {
         // Phones and tablets switch their refresh rate on their own, this is for HDMI outputs
-        if (!isLayout(TV or EMULATOR)) return false
+        if (!isLayout(TV or EMULATOR)) return MODE_OFF
         return PreferenceManager.getDefaultSharedPreferences(context)
-            .getBoolean(context.getString(R.string.match_frame_rate_key), true)
+            .getInt(context.getString(R.string.match_frame_rate_mode_key), MODE_OFF)
     }
+
+    fun isEnabled(context: Context): Boolean = mode(context) != MODE_OFF
 
     @Suppress("DEPRECATION")
     private fun Activity.currentDisplay(): Display? {
@@ -175,6 +180,9 @@ object FrameRateMatcher {
      */
     fun reset(activity: Activity?) {
         if (activity == null) return
+        // "On start" keeps the TV in the video's mode after it ends, the next video at the same
+        // frame rate then starts without a switch. The system default comes back with the app
+        if (mode(activity) == MODE_ON_START) return
         try {
             val window = activity.window
             val params = window.attributes
