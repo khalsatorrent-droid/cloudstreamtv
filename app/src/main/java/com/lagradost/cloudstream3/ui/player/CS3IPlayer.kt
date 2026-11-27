@@ -722,6 +722,17 @@ class CS3IPlayer : IPlayer {
         private const val DISPLAY_SETTLE_MS = 700L
         private const val DISPLAY_SWITCH_TIMEOUT_MS = 4000L
         private const val MAX_AUTOMATIC_TARGET_BUFFER_BYTES = 400L * 1024L * 1024L
+        private const val TV_HEAP_RESERVE_BYTES = 128L * 1024L * 1024L
+
+        /** TV: always keep at least this much video loaded ahead (as far as memory allows) */
+        private const val TV_MIN_BUFFER_MS = 30_000
+        private const val TV_MAX_BUFFER_MS = 60_000
+
+        /**
+         * TV: after running dry, wait for this much before playing again. With the default 5 s
+         * a slow link stalls again a few seconds later, again and again
+         */
+        private const val TV_BUFFER_AFTER_REBUFFER_MS = 10_000
 
         /**
          * Buffer size when the user has not picked one: what media3 uses for a video with
@@ -729,6 +740,17 @@ class CS3IPlayer : IPlayer {
          */
         private fun automaticTargetBufferBytes(): Int {
             val maxHeap = Runtime.getRuntime().maxMemory()
+            if (!isLayout(PHONE)) {
+                // TV: the read ahead is what rides out a slow moment of the server or Wi-Fi, so
+                // it gets most of the heap. 30 s of a 4K remux at 80 Mbps is about 300 MB. The
+                // rest of the app keeps at least 128 MB so the buffer can never run it out
+                return (maxHeap * 3 / 5)
+                    .coerceAtMost(MAX_AUTOMATIC_TARGET_BUFFER_BYTES)
+                    .coerceAtMost(maxHeap - TV_HEAP_RESERVE_BYTES)
+                    // A small heap still gets a quarter of it
+                    .coerceAtLeast(maxHeap / 4)
+                    .toInt()
+            }
             return (maxHeap * 2 / 5).coerceIn(
                 DefaultLoadControl.DEFAULT_MUXED_BUFFER_SIZE.toLong(),
                 MAX_AUTOMATIC_TARGET_BUFFER_BYTES
@@ -1422,16 +1444,27 @@ class CS3IPlayer : IPlayer {
                             if (isLayout(PHONE or EMULATOR)) 30000 else 0,
                             true
                         )
-                        .setBufferDurationsMs(
-                            DefaultLoadControl.DEFAULT_MIN_BUFFER_MS,
-                            if (videoBufferMs <= 0) {
-                                DefaultLoadControl.DEFAULT_MAX_BUFFER_MS
-                            } else {
-                                videoBufferMs.toInt()
-                            },
-                            DefaultLoadControl.DEFAULT_BUFFER_FOR_PLAYBACK_MS,
-                            DefaultLoadControl.DEFAULT_BUFFER_FOR_PLAYBACK_AFTER_REBUFFER_MS
-                        ).build()
+                        .apply {
+                            val isTv = !isLayout(PHONE)
+                            val maxBufferMs = when {
+                                videoBufferMs > 0 -> videoBufferMs.toInt()
+                                isTv -> TV_MAX_BUFFER_MS
+                                else -> DefaultLoadControl.DEFAULT_MAX_BUFFER_MS
+                            }
+                            // The minimum may not be above the maximum, a buffer length below
+                            // 50 s in the settings used to crash the player
+                            val minBufferMs = (if (isTv) TV_MIN_BUFFER_MS
+                            else DefaultLoadControl.DEFAULT_MIN_BUFFER_MS).coerceAtMost(maxBufferMs)
+                            setBufferDurationsMs(
+                                minBufferMs,
+                                maxBufferMs,
+                                DefaultLoadControl.DEFAULT_BUFFER_FOR_PLAYBACK_MS.coerceAtMost(minBufferMs),
+                                (if (isTv) TV_BUFFER_AFTER_REBUFFER_MS
+                                else DefaultLoadControl.DEFAULT_BUFFER_FOR_PLAYBACK_AFTER_REBUFFER_MS)
+                                    .coerceAtMost(minBufferMs)
+                            )
+                        }
+                        .build()
                 )
 
         // Because "Java rules" the media3 team hates to do open classes so we have to copy paste the entire thing to add a custom extractor

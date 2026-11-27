@@ -535,6 +535,7 @@ open class FullScreenPlayer : AbstractPlayerFragment<FragmentPlayerBinding>(
         // Use dialog as opposed to alertdialog to get fullscreen
         val dialog = Dialog(ctx, R.style.DialogFullscreenPlayer).apply {
             setContentView(binding.root)
+            FrameRateMatcher.follow(window)
         }
         this.selectSubtitlesDialog = dialog
         dialog.show()

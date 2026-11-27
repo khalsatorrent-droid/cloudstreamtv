@@ -8,6 +8,7 @@ import android.view.ViewGroup
 import androidx.fragment.app.DialogFragment
 import androidx.fragment.app.Fragment
 import com.lagradost.cloudstream3.R
+import com.lagradost.cloudstream3.ui.player.FrameRateMatcher
 import com.lagradost.cloudstream3.ui.settings.Globals.EMULATOR
 import com.lagradost.cloudstream3.ui.settings.Globals.TV
 import com.lagradost.cloudstream3.ui.settings.Globals.isLandscape
@@ -67,6 +68,8 @@ abstract class BaseDialogComposeFragment : DialogFragment(), Screen {
     override fun onStart() {
         super.onStart()
         dialog?.window?.setWindowAnimations(R.style.DialogFullscreenPlayer)
+        // Full screen over the player, keep the TV in the video's refresh rate
+        FrameRateMatcher.follow(dialog?.window)
     }
 
     override fun getTheme(): Int {
