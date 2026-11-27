@@ -428,6 +428,7 @@ class SubtitlesFragment : BaseDialogFragment<SubtitleSettingsBinding>(
     override fun onStart() {
         super.onStart()
         dialog?.window?.setWindowAnimations(R.style.DialogFullscreenPlayer)
+        com.lagradost.cloudstream3.ui.player.FrameRateMatcher.follow(dialog?.window)
     }
 
     override fun getTheme(): Int {

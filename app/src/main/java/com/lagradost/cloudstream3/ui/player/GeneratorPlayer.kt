@@ -596,6 +596,7 @@ class GeneratorPlayer : FullScreenPlayer() {
         val isSingleProvider = subsProviders.size == 1
 
         val dialog = Dialog(context, R.style.DialogFullscreenPlayer)
+        FrameRateMatcher.follow(dialog.window)
         val binding =
             DialogOnlineSubtitlesBinding.inflate(LayoutInflater.from(context), null, false)
         dialog.setContentView(binding.root)
@@ -1019,6 +1020,8 @@ class GeneratorPlayer : FullScreenPlayer() {
                 val currentSubtitles = sortSubs(viewModel.state.subtitles)
 
                 val sourceDialog = Dialog(ctx, R.style.DialogFullscreenPlayer)
+                // Keeps the TV in the video's refresh rate, else it blanks on open and close
+                FrameRateMatcher.follow(sourceDialog.window)
                 val binding =
                     PlayerSelectSourceAndSubsBinding.inflate(LayoutInflater.from(ctx), null, false)
                 sourceDialog.setContentView(binding.root)
@@ -1330,6 +1333,7 @@ class GeneratorPlayer : FullScreenPlayer() {
                         refreshLinks(currentQualityProfile)
                     }
 
+                    FrameRateMatcher.follow(dialog.window)
                     dialog.show()
                 }
 
@@ -1421,6 +1425,7 @@ class GeneratorPlayer : FullScreenPlayer() {
                 val binding: PlayerSelectTracksBinding =
                     PlayerSelectTracksBinding.inflate(LayoutInflater.from(ctx), null, false)
                 val trackDialog = Dialog(ctx, R.style.DialogFullscreenPlayer)
+                FrameRateMatcher.follow(trackDialog.window)
                 this.selectTrackDialog = trackDialog
                 trackDialog.setContentView(binding.root)
                 trackDialog.show()

@@ -5,6 +5,7 @@ import android.content.Context
 import android.os.Build
 import android.util.Log
 import android.view.Display
+import android.view.Window
 import androidx.preference.PreferenceManager
 import com.lagradost.cloudstream3.R
 import com.lagradost.cloudstream3.ui.settings.Globals.EMULATOR
@@ -34,6 +35,29 @@ object FrameRateMatcher {
 
     /** Window.preferredDisplayModeId value for "no preference", the system default is used. */
     private const val NO_PREFERRED_MODE = 0
+
+    /** The mode the player asked for, so windows opened over it can ask for the same one */
+    @Volatile
+    private var activeModeId = NO_PREFERRED_MODE
+
+    /**
+     * Android only uses the mode of windows that are not covered. A full screen menu over the
+     * player (sources, tracks, subtitle settings) covers the player window, so the TV went back
+     * to its default refresh rate and blanked, and blanked again when the menu closed. Calling
+     * this on such a window before it shows keeps the TV in the video's mode.
+     */
+    fun follow(window: Window?) {
+        val modeId = activeModeId
+        if (window == null || modeId == NO_PREFERRED_MODE) return
+        try {
+            val params = window.attributes
+            if (params.preferredDisplayModeId == modeId) return
+            params.preferredDisplayModeId = modeId
+            window.attributes = params
+        } catch (t: Throwable) {
+            Log.e(TAG, "Failed to keep the display mode", t)
+        }
+    }
 
     /** How far the display may be from a whole multiple of the video rate, 23.976 vs 24 is 0.1% */
     private const val MAX_RATIO_ERROR = 0.01f
@@ -136,6 +160,7 @@ object FrameRateMatcher {
             )
             params.preferredDisplayModeId = picked.id
             window.attributes = params
+            activeModeId = picked.id
             return true
         } catch (t: Throwable) {
             // A failed switch must never break playback
@@ -153,6 +178,7 @@ object FrameRateMatcher {
         try {
             val window = activity.window
             val params = window.attributes
+            activeModeId = NO_PREFERRED_MODE
             if (params.preferredDisplayModeId == NO_PREFERRED_MODE) return
             params.preferredDisplayModeId = NO_PREFERRED_MODE
             window.attributes = params
