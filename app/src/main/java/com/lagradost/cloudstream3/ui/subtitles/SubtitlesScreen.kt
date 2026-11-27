@@ -16,7 +16,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.MutableState
-import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -56,6 +56,10 @@ import com.mihon.presentation.settings.SearchableSettings
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.persistentMapOf
 import java.io.File
+import com.lagradost.cloudstream3.utils.DataStore.setKey
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
 
 object SubtitlesScreen : SearchableSettings {
     @Composable
@@ -142,9 +146,22 @@ object SubtitlesScreen : SearchableSettings {
         var state by subtitleStyleState
         val context = LocalContext.current
 
-        SideEffect(state) {
-            // When we modify the state, we modify the stored data
-            context.saveStyle(state)
+        LaunchedEffect(state) {
+            // Save only when the style changed, and off the main thread. Saving on every
+            // recomposition serialized and wrote the style while the user moved the D-pad,
+            // which made this screen stutter on TV sticks. The short wait groups the many
+            // changes of a held slider into one write
+            delay(250)
+            val toSave = state
+            // Only the disk write moves off the main thread, the compose state stays on it
+            withContext(Dispatchers.IO) { context.setKey(SUBTITLE_KEY, toSave) }
+        }
+
+        DisposableEffect(Unit) {
+            onDispose {
+                // Make sure the last change is stored even if the screen closes mid wait
+                context.saveStyle(state)
+            }
         }
 
         DisposableEffect(Unit) {

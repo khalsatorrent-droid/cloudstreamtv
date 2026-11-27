@@ -93,6 +93,7 @@
     <string name="popup_pause_download">Pause Download</string>
     <string name="home_more_info">More info</string>
     <string name="home_expanded_hide">Hide</string>
+    <string name="home_expand_row">See all</string>
     <string name="home_play">Play</string>
     <string name="home_info">Info</string>
     <string name="filter_bookmarks">Filter Bookmarks</string>

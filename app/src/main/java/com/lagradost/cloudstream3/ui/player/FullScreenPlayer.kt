@@ -176,6 +176,21 @@ open class FullScreenPlayer : AbstractPlayerFragment<FragmentPlayerBinding>(
                 || selectSubtitlesDialog?.isShowing == true
                 || selectCompressorDialog?.isShowing == true
                 || isShowingEpisodeOverlay
+                // Subtitle settings and other screens opened from the player are dialog
+                // fragments, without this the pause overlay faded in behind them
+                || isFragmentDialogOpen()
+
+    private fun isFragmentDialogOpen(): Boolean = try {
+        val managers = listOfNotNull(
+            if (isAdded) parentFragmentManager else null,
+            if (isAdded) childFragmentManager else null
+        )
+        managers.any { manager ->
+            manager.fragments.any { (it as? androidx.fragment.app.DialogFragment)?.dialog?.isShowing == true }
+        }
+    } catch (_: IllegalStateException) {
+        false
+    }
 
     private fun scheduleMetadataVisibility() {
         val metadataScrim = playerBinding?.playerMetadataScrim ?: return

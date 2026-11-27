@@ -9,6 +9,7 @@ import androidx.preference.PreferenceManager
 import androidx.viewbinding.ViewBinding
 import com.lagradost.cloudstream3.R
 import com.lagradost.cloudstream3.SearchResponse
+import com.lagradost.cloudstream3.databinding.HomeExpandGridBinding
 import com.lagradost.cloudstream3.databinding.HomeRemoveGridBinding
 import com.lagradost.cloudstream3.databinding.HomeRemoveGridExpandedBinding
 import com.lagradost.cloudstream3.databinding.HomeResultGridBinding
@@ -56,6 +57,9 @@ class ResumeItemAdapter(
 ) {
     // As there is no popup on TV we instead use the footer to clear
     override val footers = if (isLayout(TV or EMULATOR)) 1 else 0
+
+    // The clear tile is not the "See all" tile of the other rows
+    override fun customFooterViewType(): Int = 0
 
     override fun onCreateFooter(parent: ViewGroup): ViewHolderState<Boolean> {
         val expanded = parent.context.isBottomLayout()
@@ -109,6 +113,9 @@ open class HomeChildItemAdapter(
     id: Int,
     var nextFocusUp: Int? = null,
     var nextFocusDown: Int? = null,
+    /** Adds a "See all" tile at the end of the row on TV, see [expandRowCallback] */
+    showExpandTile: Boolean = false,
+    // Last, so callers can keep passing it as a trailing lambda
     var clickCallback: (SearchClickCallback) -> Unit,
 ) :
     BaseAdapter<SearchResponse, Boolean>(
@@ -121,6 +128,35 @@ open class HomeChildItemAdapter(
             })
     ) {
     var hasNext: Boolean = false
+
+    /**
+     * On TV the row title can not be focused, so the "See all" tile at the end of the row is
+     * the way to open the whole category as a grid (which also loads the next pages).
+     */
+    var expandRowCallback: (() -> Unit)? = null
+
+    override val footers = if (showExpandTile && isLayout(TV or EMULATOR)) 1 else 0
+
+    // Its own view type, so the shared pool never hands it to the resume row as its clear tile
+    override fun customFooterViewType(): Int = EXPAND_TILE_VIEW_TYPE
+
+    override fun onCreateFooter(parent: ViewGroup): ViewHolderState<Boolean> {
+        val binding = HomeExpandGridBinding.inflate(LayoutInflater.from(parent.context), parent, false)
+        return HomeScrollViewHolderState(binding)
+    }
+
+    override fun onBindFooter(holder: ViewHolderState<Boolean>) {
+        val binding = holder.view as? HomeExpandGridBinding ?: return
+        updateLayoutParms(binding.backgroundCard, setWidth, setHeight)
+        holder.itemView.apply {
+            isFocusableInTouchMode = isLayout(TV)
+            isFocusable = true
+            nextFocusUp?.let { nextFocusUpId = it }
+            nextFocusDown?.let { nextFocusDownId = it }
+            setOnClickListener { expandRowCallback?.invoke() }
+        }
+    }
+
     var isHorizontal: Boolean = false
         set(value) {
             field = value
@@ -159,6 +195,8 @@ open class HomeChildItemAdapter(
     }
 
     companion object {
+        private const val EXPAND_TILE_VIEW_TYPE = 1
+
         // The vast majority of the lag comes from creating the view
         // This simply shares the views between all HomeChildItemAdapter
         val sharedPool =

@@ -37,6 +37,13 @@ object FrameRateMatcher {
     /** How far the display may be from a whole multiple of the video rate, 23.976 vs 24 is 0.1% */
     private const val MAX_RATIO_ERROR = 0.01f
 
+    /**
+     * Below this a mode counts as exact. 24 Hz for 23.976 fps is 0.1% off, which repeats a frame
+     * about every 42 seconds, a visible skip on panning shots. 29.97 on 60 Hz does the same
+     * every 33 seconds. So an exact mode is worth a switch even when a near one is active
+     */
+    private const val EXACT_RATIO_ERROR = 0.0005f
+
     /** 24 fps on a 120 Hz display is still judder free, anything beyond that is not realistic */
     private const val MAX_MULTIPLE = 5
 
@@ -54,11 +61,12 @@ object FrameRateMatcher {
     }
 
     /**
-     * Picks the mode to switch to, or null if the current one is fine (or nothing fits).
+     * Picks the mode to switch to, or null if the current one is fine (or nothing better fits).
      *
-     * A mode is fine if its refresh rate is a whole multiple of the frame rate, 30 fps on 60 Hz
-     * does not need a switch. Among the modes that fit, the lowest multiple wins and then the
-     * closest rate, so 23.976 content picks 23.976 Hz over 24 Hz, and 24 fps picks 24 Hz over 48 Hz.
+     * A mode fits if its refresh rate is a whole multiple of the frame rate, 30 fps on 60 Hz
+     * needs no switch. Exact modes win over near ones (23.976 Hz over 24 Hz for 23.976 fps),
+     * then the lowest multiple, then the closest rate. The current mode is kept when it is exact,
+     * or when it is near and no exact mode exists.
      */
     internal fun pickMode(
         modes: List<DisplayModeInfo>,
@@ -66,13 +74,23 @@ object FrameRateMatcher {
         videoFps: Float
     ): DisplayModeInfo? {
         if (!videoFps.isFinite() || videoFps !in MIN_VIDEO_FPS..MAX_VIDEO_FPS) return null
-        if (fit(current.refreshRate, videoFps) != null) return null
+        val currentFit = fit(current.refreshRate, videoFps)
+        if (currentFit != null && currentFit.second <= EXACT_RATIO_ERROR) return null
 
-        return modes
+        val (best, bestFit) = modes
             .filter { it.width == current.width && it.height == current.height }
             .mapNotNull { mode -> fit(mode.refreshRate, videoFps)?.let { mode to it } }
-            .minWithOrNull(compareBy({ it.second.first }, { it.second.second }))
-            ?.first
+            .minWithOrNull(
+                compareBy(
+                    { it.second.second > EXACT_RATIO_ERROR },
+                    { it.second.first },
+                    { it.second.second })
+            ) ?: return null
+
+        // Near is as good as it gets on this TV, a switch would only blank the screen
+        if (currentFit != null && bestFit.second > EXACT_RATIO_ERROR) return null
+        if (best.id == current.id) return null
+        return best
     }
 
     private fun Display.Mode.toInfo() = DisplayModeInfo(

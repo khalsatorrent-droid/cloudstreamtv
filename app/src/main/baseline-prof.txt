@@ -50,3 +50,26 @@ HSPLcom/fasterxml/jackson/core/**;->**(**)**
 Lcom/fasterxml/jackson/core/**;
 HSPLcom/fasterxml/jackson/module/kotlin/**;->**(**)**
 Lcom/fasterxml/jackson/module/kotlin/**;
+
+# Settings screens that open over the player (subtitle style, player settings) are Compose
+# screens. Interpreted, every D-pad step on them stuttered on a Fire TV stick
+HSPLcom/lagradost/cloudstream3/ui/subtitles/**;->**(**)**
+Lcom/lagradost/cloudstream3/ui/subtitles/**;
+HSPLcom/lagradost/cloudstream3/ui/settings/**;->**(**)**
+Lcom/lagradost/cloudstream3/ui/settings/**;
+HSPLcom/lagradost/cloudstream4/**;->**(**)**
+Lcom/lagradost/cloudstream4/**;
+HSPLcom/mihon/**;->**(**)**
+Lcom/mihon/**;
+
+# Playback: the media3 player, its http source and the ffmpeg audio renderer
+HSPLandroidx/media3/exoplayer/**;->**(**)**
+Landroidx/media3/exoplayer/**;
+HSPLandroidx/media3/extractor/mkv/**;->**(**)**
+Landroidx/media3/extractor/mkv/**;
+HSPLandroidx/media3/datasource/**;->**(**)**
+Landroidx/media3/datasource/**;
+HSPLandroidx/media3/ui/**;->**(**)**
+Landroidx/media3/ui/**;
+HSPLio/github/anilbeesetti/nextlib/**;->**(**)**
+Lio/github/anilbeesetti/nextlib/**;

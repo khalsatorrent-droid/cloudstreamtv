@@ -113,6 +113,7 @@ import com.lagradost.cloudstream3.utils.videoskip.VideoSkipStamp
 import com.lagradost.cloudstream4.AppSettings
 import kotlinx.coroutines.delay
 import okhttp3.Interceptor
+import okhttp3.OkHttpClient
 import org.chromium.net.CronetEngine
 import java.io.File
 import java.security.SecureRandom
@@ -826,6 +827,14 @@ class CS3IPlayer : IPlayer {
             }
         }
 
+        /**
+         * The app client has a disk cache for api responses. The first request for a video has
+         * no Range header, so a server that answers it with a plain 200 had the whole video copied
+         * into that cache as it played, a second stream of writes to the stick's slow storage
+         * next to an 80 GB 4K file. Video never goes through that cache, the player has its own
+         */
+        private fun videoHttpClient(): OkHttpClient = app.baseClient.newBuilder().cache(null).build()
+
         private fun createVideoSource(
             link: ExtractorLink,
             engine: CronetEngine?,
@@ -838,7 +847,7 @@ class CS3IPlayer : IPlayer {
             val source = if (interceptor == null) {
                 if (engine == null) {
                     Log.d(TAG, "Using DefaultHttpDataSource for $link")
-                    OkHttpDataSource.Factory(app.baseClient).setUserAgent(userAgent)
+                    OkHttpDataSource.Factory(videoHttpClient()).setUserAgent(userAgent)
                 } else {
                     Log.d(TAG, "Using CronetDataSource for $link")
                     CronetDataSource.Factory(engine, Executors.newSingleThreadExecutor())
@@ -850,7 +859,7 @@ class CS3IPlayer : IPlayer {
                 }
             } else {
                 Log.d(TAG, "Using OkHttpDataSource for $link")
-                val client = app.baseClient.newBuilder()
+                val client = videoHttpClient().newBuilder()
                     .addInterceptor(interceptor)
                     .build()
                 OkHttpDataSource.Factory(client).setUserAgent(userAgent)
@@ -915,6 +924,22 @@ class CS3IPlayer : IPlayer {
                 // but will make the m3u8 pick the correct preferred
                 .setMaxVideoSize(Int.MAX_VALUE, maxVideoHeight ?: Int.MAX_VALUE)
                 .setPreferredAudioLanguage(null)
+                .apply {
+                    if (!isLayout(PHONE)) {
+                        // 4K remuxes carry TrueHD/DTS-HD next to a Dolby Digital (Plus) track.
+                        // A Fire TV can not pass TrueHD to the TV, so it was decoded in software
+                        // on the stick's CPU next to a 60-100 Mbps video stream, which is where
+                        // the stutter came from. Dolby tracks go to the TV or soundbar as they
+                        // are (with Atmos for E-AC3 JOC). The language choice still wins over
+                        // this, it only picks between tracks of the same language
+                        setPreferredAudioMimeTypes(
+                            MimeTypes.AUDIO_E_AC3_JOC,
+                            MimeTypes.AUDIO_E_AC3,
+                            MimeTypes.AUDIO_AC3,
+                            MimeTypes.AUDIO_AAC,
+                        )
+                    }
+                }
                 .build()
             return trackSelector
         }

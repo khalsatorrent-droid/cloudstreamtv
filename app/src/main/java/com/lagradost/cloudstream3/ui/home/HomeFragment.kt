@@ -274,7 +274,20 @@ class HomeFragment : BaseFragment<FragmentHomeBinding>(
 
             //(recycle.adapter as SearchAdapter).notifyDataSetChanged()
 
+            val isTvLayout = isLayout(TV or EMULATOR)
+            if (isTvLayout) {
+                // A half open sheet has nothing to drag with on a remote, open it all the way
+                bottomSheetDialogBuilder.behavior.skipCollapsed = true
+                bottomSheetDialogBuilder.behavior.state = BottomSheetBehavior.STATE_EXPANDED
+            }
+
             bottomSheetDialogBuilder.show()
+            if (isTvLayout) {
+                // Start on the first title of the category instead of the close handle
+                binding.homeExpandedRecycler.post {
+                    binding.homeExpandedRecycler.getChildAt(0)?.requestFocus()
+                }
+            }
             return bottomSheetDialogBuilder
         }
 
