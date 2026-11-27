@@ -48,8 +48,12 @@ object ImageLoader {
             .diskCachePolicy(CachePolicy.ENABLED)
             .networkCachePolicy(CachePolicy.ENABLED)
             .memoryCache {
-                MemoryCache.Builder().maxSizePercent(context, 0.1)//10 % of heap for mem-cache
-                    .strongReferencesEnabled(false)
+                // With weak references only, posters that scrolled away were dropped at the next
+                // GC and decoded again when the row came back, which costs frames on a TV stick.
+                // TV keeps them, as hardware bitmaps they live in graphics memory, not the heap
+                val isTv = isLayout(TV or EMULATOR)
+                MemoryCache.Builder().maxSizePercent(context, if (isTv) 0.15 else 0.1)
+                    .strongReferencesEnabled(isTv)
                     .build()
             }
             .diskCache {

@@ -48,7 +48,8 @@ open class ParentItemAdapter(
 ) {
     companion object {
         val sharedPool =
-            newSharedPool { setMaxRecycledViews(CONTENT, 4) }
+            // Rows are expensive to inflate, keep enough for a fast scroll down the home page
+            newSharedPool { setMaxRecycledViews(CONTENT, 8) }
     }
 
     data class ParentItemHolder(val binding: ViewBinding) : ViewHolderState<Bundle>(binding) {
