@@ -113,9 +113,10 @@ open class HomeChildItemAdapter(
     id: Int,
     var nextFocusUp: Int? = null,
     var nextFocusDown: Int? = null,
-    var clickCallback: (SearchClickCallback) -> Unit,
     /** Adds a "See all" tile at the end of the row on TV, see [expandRowCallback] */
     showExpandTile: Boolean = false,
+    // Last, so callers can keep passing it as a trailing lambda
+    var clickCallback: (SearchClickCallback) -> Unit,
 ) :
     BaseAdapter<SearchResponse, Boolean>(
         id, diffCallback = BaseDiffCallback(
