@@ -1,7 +1,13 @@
 # CloudStream
 
 **⚠️ Warning: By default, this app doesn't provide any video sources; you have to install extensions to add functionality to the app.**
-<p align="left"><a href="https://github.com/recloudstream/cloudstream/releases/download/pre-release/app-prerelease-release.apk"><img src=".github/images/download-cloudstream-pre.png" alt="Download Cloudstream Pre-Release" width=430/></a></p>
+<p align="left"><a href="https://github.com/khalsatorrent-droid/cloudstreamtv/releases/download/pre-release/cloudstream-firestick-4k.apk"><img src=".github/images/download-cloudstream-pre.png" alt="Download CloudStream TV for Fire TV" width=430/></a></p>
+
+### Fire TV Stick 4K / 4K Plus / 4K Max
+
+In Downloader, open `https://github.com/khalsatorrent-droid/cloudstreamtv/releases/download/pre-release/cloudstream-firestick-4k.apk` and install.
+The app shows up as **CloudStream TV** (`com.lagradost.cloudstream3.firetv`), next to any official CloudStream app, and updates itself from this repo.
+If a sideloaded app does not appear on the home row, look under *Your Apps & Channels → See All*, or *Settings → Applications → Manage Installed Applications*.
 
 [![Discord](https://invidget.switchblade.xyz/5Hus6fM)](https://discord.gg/5Hus6fM)
 

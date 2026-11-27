@@ -169,7 +169,14 @@ android {
         }
         create("prerelease") {
             dimension = "state"
-            applicationIdSuffix = ".prerelease"
+            // Own package for the Fire TV build. With ".prerelease" it had the same package as the
+            // official CloudStream pre-release, which is signed with another key, so Fire OS
+            // refused to install it over that app ("App not installed")
+            applicationIdSuffix = ".firetv"
+            // Fire TV sticks are ARM, the x86 libraries only make the download and install slower
+            ndk {
+                abiFilters += listOf("armeabi-v7a", "arm64-v8a")
+            }
             if (signingConfigs.names.contains("prerelease")) {
                 signingConfig = signingConfigs.getByName("prerelease")
             } else {

@@ -41,7 +41,7 @@ object InAppUpdater {
     private const val GITHUB_USER_NAME = "khalsatorrent-droid"
     private const val GITHUB_REPO = "cloudstreamtv"
 
-    private const val PRERELEASE_PACKAGE_NAME = "com.lagradost.cloudstream3.prerelease"
+    private const val PRERELEASE_PACKAGE_NAME = "com.lagradost.cloudstream3.firetv"
     private const val LOG_TAG = "InAppUpdater"
 
     @Serializable

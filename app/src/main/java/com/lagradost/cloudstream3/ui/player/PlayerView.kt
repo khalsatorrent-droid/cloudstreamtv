@@ -47,6 +47,7 @@ import androidx.vectordrawable.graphics.drawable.Animatable2Compat
 import androidx.vectordrawable.graphics.drawable.AnimatedVectorDrawableCompat
 import com.github.rubensousa.previewseekbar.PreviewBar
 import com.github.rubensousa.previewseekbar.media3.PreviewTimeBar
+import com.lagradost.cloudstream3.CloudStreamApp.Companion.getActivity
 import com.lagradost.cloudstream3.CommonActivity.isInPIPMode
 import com.lagradost.cloudstream3.CommonActivity.screenWidth
 import com.lagradost.cloudstream3.CommonActivity.showToast
@@ -430,7 +431,7 @@ class PlayerView @JvmOverloads constructor(
     var fullscreenNotch: Boolean = true // TODO SETTING
 
     fun enterFullscreen(updateOrientation: () -> Unit = {}) {
-        val activity = context as? Activity
+        val activity = context.getActivity()
         if (isFullScreen) {
             activity?.hideSystemUI()
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P && fullscreenNotch) {
@@ -443,7 +444,7 @@ class PlayerView @JvmOverloads constructor(
     }
 
     fun exitFullscreen() {
-        val activity = context as? Activity
+        val activity = context.getActivity()
         gestureHelper.resetZoomToDefault()
         activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_USER
         // Simply resets brightness and notch settings that might have been overridden.
@@ -471,13 +472,13 @@ class PlayerView @JvmOverloads constructor(
         player = CS3IPlayer()
 
         // The activity window outlives the player, put the display back to the user's mode
-        FrameRateMatcher.reset(context as? Activity)
+        FrameRateMatcher.reset(context.getActivity())
 
         // keyEventListener is deregistered in onPause so that the incoming player's
         // onResume can register its own listener without racing against release().
 
         PlayerPipHelper.updatePIPModeActions(
-            context as? Activity,
+            context.getActivity(),
             CSPlayerLoading.IsPaused,
             false,
             null
@@ -542,7 +543,7 @@ class PlayerView @JvmOverloads constructor(
     /** Player UI helpers */
 
     private fun keepScreenOn(on: Boolean) {
-        val window = (context as? Activity)?.window ?: return
+        val window = context.getActivity()?.window ?: return
         if (on) window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         else window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
     }
@@ -622,7 +623,7 @@ class PlayerView @JvmOverloads constructor(
         }
 
         PlayerPipHelper.updatePIPModeActions(
-            context as? Activity,
+            context.getActivity(),
             isPlaying,
             hasPipModeSupport,
             player.getAspectRatio()
@@ -631,7 +632,7 @@ class PlayerView @JvmOverloads constructor(
 
     private fun requestAudioFocus() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            (context as? Activity)?.requestLocalAudioFocus(AppContextUtils.getFocusRequest())
+            context.getActivity()?.requestLocalAudioFocus(AppContextUtils.getFocusRequest())
         }
     }
 
@@ -671,7 +672,7 @@ class PlayerView @JvmOverloads constructor(
                     context.getString(R.string.no_links_found_toast) + "\n" + message,
                     Toast.LENGTH_LONG
                 )
-                (context as? FragmentActivity)?.popCurrentPage()
+                (context.getActivity() as? FragmentActivity)?.popCurrentPage()
             }
         }
 
@@ -791,7 +792,7 @@ class PlayerView @JvmOverloads constructor(
                 callbacks?.playerDimensionsLoaded(event.width, event.height)
             }
             is FrameRateEvent -> FrameRateMatcher.onVideoFrameRate(
-                context as? Activity,
+                context.getActivity(),
                 event.frameRate
             )
             is PlayerAttachedEvent -> playerUpdated(event.player)
