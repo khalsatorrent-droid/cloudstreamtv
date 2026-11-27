@@ -3,7 +3,7 @@ package com.lagradost.cloudstream3.ui.subtitles
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -16,6 +16,10 @@ import com.google.android.gms.cast.TextTrackStyle.EDGE_TYPE_NONE
 import com.google.android.gms.cast.TextTrackStyle.EDGE_TYPE_OUTLINE
 import com.google.android.gms.cast.TextTrackStyle.EDGE_TYPE_RAISED
 import com.lagradost.cloudstream3.R
+import com.lagradost.cloudstream3.utils.DataStore.setKey
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
 import com.lagradost.cloudstream3.ui.subtitles.ChromecastSubtitlesFragment.Companion.applyStyleEvent
 import com.lagradost.cloudstream3.ui.subtitles.ChromecastSubtitlesFragment.Companion.chromeCastSubtitleState
 import com.lagradost.cloudstream3.ui.subtitles.ChromecastSubtitlesFragment.Companion.defaultChromeCastSubtitleState
@@ -49,9 +53,22 @@ object ChromecastSubtitlesScreen : SearchableSettings {
         var state by chromeCastSubtitleState
         val context = LocalContext.current
 
-        SideEffect(state) {
-            // When we modify the state, we modify the stored data
-            context.saveStyle(state)
+        LaunchedEffect(state) {
+            // Save only when the style changed, and off the main thread. Saving on every
+            // recomposition serialized and wrote the style while the user moved the D-pad,
+            // which made this screen stutter on TV sticks. The short wait groups the many
+            // changes of a held slider into one write
+            delay(250)
+            val toSave = state
+            // Only the disk write moves off the main thread, the compose state stays on it
+            withContext(Dispatchers.IO) { context.setKey(CHROME_SUBTITLE_KEY, toSave) }
+        }
+
+        DisposableEffect(Unit) {
+            onDispose {
+                // Make sure the last change is stored even if the screen closes mid wait
+                context.saveStyle(state)
+            }
         }
 
         DisposableEffect(Unit) {
