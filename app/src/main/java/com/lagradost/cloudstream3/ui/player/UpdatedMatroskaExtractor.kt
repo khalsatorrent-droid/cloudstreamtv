@@ -2182,6 +2182,14 @@ class UpdatedMatroskaExtractor private constructor(
                     .setProjectionData(projectionData)
                     .setStereoMode(stereoMode)
                     .setColorInfo(colorInfo)
+                    // Mkv has no frame rate field, only the default frame duration. Without it
+                    // the player never knew the frame rate of mkv files, so the TV could not be
+                    // switched to 23.976/24 Hz and 4K remuxes played with 3:2 judder on 60 Hz
+                    .apply {
+                        if (defaultSampleDurationNs > 0) {
+                            setFrameRate(1_000_000_000f / defaultSampleDurationNs)
+                        }
+                    }
             } else if (MimeTypes.APPLICATION_SUBRIP == mimeType
                 || MimeTypes.TEXT_SSA == mimeType
                 || MimeTypes.TEXT_VTT == mimeType

@@ -42,9 +42,14 @@ class FrameRateMatcherTest {
     }
 
     @Test
-    fun ntsc_video_on_60hz_is_left_alone() {
-        // 60 Hz is two refreshes per frame, 0.1% off
-        assertNull(FrameRateMatcher.pickMode(all, m60, 29.97f))
+    fun ntsc_video_on_60hz_moves_to_59_94() {
+        // 60 Hz is two refreshes per frame but 0.1% off, a skipped frame every 33 seconds
+        assertEquals(m59, FrameRateMatcher.pickMode(all, m60, 29.97f))
+    }
+
+    @Test
+    fun ntsc_video_on_60hz_is_left_alone_without_an_exact_mode() {
+        assertNull(FrameRateMatcher.pickMode(listOf(m60, m50), m60, 29.97f))
     }
 
     @Test
@@ -66,9 +71,20 @@ class FrameRateMatcherTest {
     }
 
     @Test
-    fun near_match_is_left_alone() {
-        // 24 Hz for 23.976 fps is 0.1% off
-        assertNull(FrameRateMatcher.pickMode(all, m24, 23.976f))
+    fun near_match_moves_to_the_exact_rate() {
+        // 24 Hz for 23.976 fps is 0.1% off, a repeated frame every 42 seconds
+        assertEquals(m23, FrameRateMatcher.pickMode(all, m24, 23.976f))
+    }
+
+    @Test
+    fun near_match_is_left_alone_without_an_exact_mode() {
+        assertNull(FrameRateMatcher.pickMode(listOf(m24, m60), m24, 23.976f))
+    }
+
+    @Test
+    fun mkv_default_duration_rate_matches_23_976() {
+        // 41708333 ns per frame, what a 23.976 fps mkv stores
+        assertEquals(m23, FrameRateMatcher.pickMode(all, m60, 1_000_000_000f / 41708333))
     }
 
     @Test
