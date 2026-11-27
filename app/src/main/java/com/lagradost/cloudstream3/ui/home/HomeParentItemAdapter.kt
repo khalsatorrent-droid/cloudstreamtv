@@ -105,6 +105,7 @@ open class ParentItemAdapter(
                     clickCallback = clickCallback,
                     nextFocusUp = homeChildRecyclerview.nextFocusUpId,
                     nextFocusDown = homeChildRecyclerview.nextFocusDownId,
+                    showExpandTile = true,
                 ).apply {
                     isHorizontal = info.isHorizontalImages
                     hasNext = item.hasNext
@@ -161,6 +162,11 @@ open class ParentItemAdapter(
                     }
                 }
             })
+
+            // The holder is reused for other rows, so the tile must open the row bound now
+            (homeChildRecyclerview.adapter as? HomeChildItemAdapter)?.expandRowCallback = {
+                moreInfoClickCallback.invoke(item)
+            }
 
             //(recyclerView.adapter as HomeChildItemAdapter).notifyDataSetChanged()
             if (isLayout(PHONE or EMULATOR)) {

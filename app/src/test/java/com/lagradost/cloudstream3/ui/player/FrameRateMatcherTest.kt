@@ -42,9 +42,10 @@ class FrameRateMatcherTest {
     }
 
     @Test
-    fun ntsc_video_on_60hz_moves_to_59_94() {
+    fun ntsc_video_on_60hz_moves_to_an_exact_rate() {
         // 60 Hz is two refreshes per frame but 0.1% off, a skipped frame every 33 seconds
-        assertEquals(m59, FrameRateMatcher.pickMode(all, m60, 29.97f))
+        assertEquals(m29, FrameRateMatcher.pickMode(all, m60, 29.97f))
+        assertEquals(m59, FrameRateMatcher.pickMode(listOf(m60, m59), m60, 29.97f))
     }
 
     @Test
