@@ -49,6 +49,8 @@ import androidx.media3.common.util.ParsableByteArray
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.common.util.Util
 import androidx.media3.container.DolbyVisionConfig
+import com.lagradost.cloudstream3.ui.settings.Globals.PHONE
+import com.lagradost.cloudstream3.ui.settings.Globals.isLayout
 import androidx.media3.container.NalUnitUtil
 import androidx.media3.extractor.AacUtil
 import androidx.media3.extractor.AvcConfig
@@ -2110,7 +2112,7 @@ class UpdatedMatroskaExtractor private constructor(
             if (dolbyVisionConfigBytes != null) {
                 val dolbyVisionConfig =
                     DolbyVisionConfig.parse(ParsableByteArray(dolbyVisionConfigBytes!!))
-                if (dolbyVisionConfig != null) {
+                if (dolbyVisionConfig != null && !playAsHdr10(dolbyVisionConfig.profile)) {
                     codecs = dolbyVisionConfig.codecs
                     mimeType = MimeTypes.VIDEO_DOLBY_VISION
                 }
@@ -2749,6 +2751,16 @@ class UpdatedMatroskaExtractor private constructor(
          * https://www.matroska.org/technical/codec_specs.html.
          */
         private const val BLOCK_ADD_ID_TYPE_DVCC = 0x64766343
+
+        /**
+         * Dolby Vision profile 7 is the dual layer format of UHD Blu-ray remuxes. Streaming
+         * devices like the Fire TV only do profiles 5 and 8, so a profile 7 file sent to their
+         * Dolby Vision decoder came out with the wrong brightness and colours (flat and dull).
+         * Its base layer is plain HDR10 though, and a normal HEVC decoder skips the Dolby layers,
+         * so on TV it plays as HDR10, which is how other players on these devices handle it.
+         */
+        private fun playAsHdr10(dolbyVisionProfile: Int): Boolean =
+            dolbyVisionProfile == 7 && !isLayout(PHONE)
 
         /**
          * BlockAddIdType value for Dolby Vision configuration with profile > 7. See also
