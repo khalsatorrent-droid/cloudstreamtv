@@ -196,6 +196,13 @@ object SettingsPlayerScreen : SearchableSettings {
                         icon = painterResource(R.drawable.ic_baseline_speed_24),
                     ),
                     Preference.PreferenceItem.SwitchPreference(
+                        preference = settings.player.tunneledPlayback,
+                        enabled = isLayout(TV or EMULATOR),
+                        title = stringResource(R.string.tunneled_playback_settings),
+                        subtitle = stringResource(R.string.tunneled_playback_settings_des),
+                        icon = painterResource(R.drawable.ic_baseline_speed_24),
+                    ),
+                    Preference.PreferenceItem.SwitchPreference(
                         preference = settings.player.extraBrightnessEnabled,
                         title = stringResource(R.string.extra_brightness_settings),
                         subtitle = stringResource(R.string.extra_brightness_settings_des),

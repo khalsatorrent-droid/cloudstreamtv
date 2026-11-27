@@ -76,6 +76,7 @@ import androidx.media3.ui.SubtitleView
 import androidx.preference.PreferenceManager
 import com.lagradost.cloudstream3.APIHolder.getApiFromNameNull
 import com.lagradost.cloudstream3.AudioFile
+import com.lagradost.cloudstream3.CloudStreamApp
 import com.lagradost.cloudstream3.CloudStreamApp.Companion.getKey
 import com.lagradost.cloudstream3.CloudStreamApp.Companion.setKey
 import com.lagradost.cloudstream3.CommonActivity.activity
@@ -93,6 +94,7 @@ import com.lagradost.cloudstream3.ui.player.live.LiveHelper
 import com.lagradost.cloudstream3.ui.player.live.PREFERRED_LIVE_OFFSET
 import com.lagradost.cloudstream3.ui.settings.Globals.EMULATOR
 import com.lagradost.cloudstream3.ui.settings.Globals.PHONE
+import com.lagradost.cloudstream3.ui.settings.Globals.TV
 import com.lagradost.cloudstream3.ui.settings.Globals.isLayout
 import com.lagradost.cloudstream3.ui.subtitles.SaveCaptionStyle
 import com.lagradost.cloudstream3.ui.subtitles.SubtitlesFragment.Companion.applyStyle
@@ -665,6 +667,14 @@ class CS3IPlayer : IPlayer {
     }
 
     override fun setPlaybackSpeed(speed: Float) {
+        // A tunneled decoder only plays at normal speed, so leave the tunnel while sped up
+        (exoPlayer?.trackSelector as? DefaultTrackSelector)?.let { selector ->
+            val ctx = CloudStreamApp.context
+            val tunnel = ctx != null && speed == 1f && wantsTunneling(ctx)
+            if (selector.parameters.tunnelingEnabled != tunnel) {
+                selector.parameters = selector.buildUponParameters().setTunnelingEnabled(tunnel).build()
+            }
+        }
         exoPlayer?.setPlaybackSpeed(speed)
         playBackSpeed = speed
     }
@@ -917,6 +927,18 @@ class CS3IPlayer : IPlayer {
             return getMediaItemBuilder(mimeType).setUri(url).build()
         }
 
+        /**
+         * Tunneled playback hands the timing of every video frame to the decoder, synced to the
+         * audio clock of the HDMI output. Without it the app releases the frames, and on a Fire
+         * TV stick the audio clock (passthrough most of all) drifts against that, so the player
+         * drops a frame to catch up every few seconds. Amazon recommends it for 4K
+         */
+        private fun wantsTunneling(context: Context): Boolean {
+            if (!isLayout(TV or EMULATOR)) return false
+            return PreferenceManager.getDefaultSharedPreferences(context)
+                .getBoolean(context.getString(R.string.tunneled_playback_key), true)
+        }
+
         private fun getTrackSelector(context: Context, maxVideoHeight: Int?): TrackSelector {
             val trackSelector = DefaultTrackSelector(context)
             trackSelector.parameters = trackSelector.buildUponParameters()
@@ -924,6 +946,9 @@ class CS3IPlayer : IPlayer {
                 // but will make the m3u8 pick the correct preferred
                 .setMaxVideoSize(Int.MAX_VALUE, maxVideoHeight ?: Int.MAX_VALUE)
                 .setPreferredAudioLanguage(null)
+                // Only used when the video decoder and the audio output both support it, the
+                // player falls back to normal playback on its own otherwise
+                .setTunnelingEnabled(wantsTunneling(context))
                 .apply {
                     if (!isLayout(PHONE)) {
                         // 4K remuxes carry TrueHD/DTS-HD next to a Dolby Digital (Plus) track.
