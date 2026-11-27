@@ -9,6 +9,10 @@ In Downloader, open `https://github.com/khalsatorrent-droid/cloudstreamtv/releas
 The app shows up as **CloudStream TV** (`com.lagradost.cloudstream3.firetv`), next to any official CloudStream app, and updates itself from this repo.
 If a sideloaded app does not appear on the home row, look under *Your Apps & Channels → See All*, or *Settings → Applications → Manage Installed Applications*.
 
+#### Simkl sign-in on the TV
+
+The release needs a Simkl app key. Create an app at simkl.com (developer settings) with the redirect URI `cloudstreamapp://simkl`, then add its Client ID and Client Secret to this repo as the Actions secrets `SIMKL_CLIENT_ID` and `SIMKL_CLIENT_SECRET`. The next release can then sign in: Settings → Accounts → Simkl shows a code and a QR code to finish on your phone, without a browser on the TV.
+
 [![Discord](https://invidget.switchblade.xyz/5Hus6fM)](https://discord.gg/5Hus6fM)
 
 

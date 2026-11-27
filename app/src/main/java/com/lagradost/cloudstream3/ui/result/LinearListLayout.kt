@@ -8,6 +8,7 @@ import com.lagradost.cloudstream3.CommonActivity
 import com.lagradost.cloudstream3.CommonActivity.activity
 import com.lagradost.cloudstream3.FocusDirection
 import com.lagradost.cloudstream3.mvvm.logError
+import com.lagradost.cloudstream3.ui.home.HomeChildItemAdapter
 import com.lagradost.cloudstream3.ui.settings.Globals.TV
 import com.lagradost.cloudstream3.ui.settings.Globals.isLayout
 
@@ -111,7 +112,12 @@ open class LinearListLayout(context: Context?) :
                 (focused.layoutManager as? LinearListLayout)?.let { focusedLayoutManager ->
                     val firstPosition = focusedLayoutManager.findFirstVisibleItemPosition()
                     val firstView = focusedLayoutManager.findViewByPosition(firstPosition)
-                    firstView
+                    // Land on the first title of a home row, not on its "See all" tile
+                    if (firstView?.tag == HomeChildItemAdapter.EXPAND_TILE_TAG) {
+                        focusedLayoutManager.findViewByPosition(firstPosition + 1) ?: firstView
+                    } else {
+                        firstView
+                    }
                 } ?: focused
             }
 

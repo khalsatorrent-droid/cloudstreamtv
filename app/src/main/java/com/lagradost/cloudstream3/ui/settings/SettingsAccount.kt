@@ -161,9 +161,12 @@ class SettingsAccount : BasePreferenceFragmentCompat(), BiometricCallback {
                 AlertDialog.Builder(activity)
                     .setView(binding.root)
 
+            // On a TV the browser is a dead end with a remote, the code and QR code are the way
+            val canUseBrowser = isLayout(PHONE)
+
             builder.apply {
                 setNegativeButton(R.string.cancel) { _, _ -> }
-                if (api.hasOAuth2) {
+                if (api.hasOAuth2 && canUseBrowser) {
                     setPositiveButton(R.string.auth_locally) { _, _ ->
                         api.openOAuth2PageWithToast()
                     }
@@ -173,11 +176,13 @@ class SettingsAccount : BasePreferenceFragmentCompat(), BiometricCallback {
             val dialog = builder.create()
 
             ioSafe {
+                var errorShown = false
                 val pinCodeData = try {
                     api.pinRequest()
                 } catch (e: ErrorLoadingException) {
                     if (e.message != null) {
                         showToast(e.message)
+                        errorShown = true
                         null
                     } else {
                         throw e
@@ -187,7 +192,8 @@ class SettingsAccount : BasePreferenceFragmentCompat(), BiometricCallback {
                     null
                 }
                 if (pinCodeData == null) {
-                    if (api.hasOAuth2) {
+                    if (errorShown) return@ioSafe
+                    if (api.hasOAuth2 && canUseBrowser) {
                         showToast(R.string.device_pin_error_message)
                         api.openOAuth2PageWithToast()
                     } else {

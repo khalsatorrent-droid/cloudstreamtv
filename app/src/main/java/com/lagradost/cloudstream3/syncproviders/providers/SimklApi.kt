@@ -12,6 +12,7 @@ import com.lagradost.cloudstream3.CloudStreamApp.Companion.getKeys
 import com.lagradost.cloudstream3.CloudStreamApp.Companion.removeKey
 import com.lagradost.cloudstream3.CloudStreamApp.Companion.setKey
 import com.lagradost.cloudstream3.LoadResponse.Companion.readIdFromString
+import com.lagradost.cloudstream3.ErrorLoadingException
 import com.lagradost.cloudstream3.R
 import com.lagradost.cloudstream3.Score
 import com.lagradost.cloudstream3.SimklSyncServices
@@ -1094,6 +1095,12 @@ class SimklApi : SyncAPI() {
     }
 
     override suspend fun pinRequest(): AuthPinData? {
+        // Without an app key Simkl refuses every request, say so instead of a vague failure
+        if (CLIENT_ID.isBlank() || CLIENT_ID == "null") {
+            throw ErrorLoadingException(
+                "Simkl sign-in is not set up in this build (no Simkl app key)"
+            )
+        }
         val pinAuthResp = app.get(
             "$mainUrl/oauth/pin?client_id=$CLIENT_ID&redirect_uri=$APP_STRING://$redirectUrlIdentifier"
         ).parsedSafe<PinAuthResponse>() ?: return null
