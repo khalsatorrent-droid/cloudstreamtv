@@ -89,6 +89,19 @@ jobs:
       if: steps.released.outputs.skip != 'true'
       uses: gradle/actions/setup-gradle@v5
 
+    - name: Check account keys
+      if: steps.released.outputs.skip != 'true'
+      env:
+        SIMKL_CLIENT_ID: ${{ secrets.SIMKL_CLIENT_ID }}
+        SIMKL_CLIENT_SECRET: ${{ secrets.SIMKL_CLIENT_SECRET }}
+      # Only says whether the keys exist, never prints them
+      run: |
+        if [ -n "${SIMKL_CLIENT_ID}" ] && [ -n "${SIMKL_CLIENT_SECRET}" ]; then
+          echo "Simkl sign-in: key set"
+        else
+          echo "::warning::Simkl sign-in will not work, add the SIMKL_CLIENT_ID and SIMKL_CLIENT_SECRET repository secrets"
+        fi
+
     - name: Test and build
       if: steps.released.outputs.skip != 'true'
       env:
