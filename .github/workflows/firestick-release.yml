@@ -103,6 +103,8 @@ jobs:
         SHORT="${GITHUB_SHA::7}"
         OUT="cloudstream-firestick-4k-${SHORT}.apk"
         cp "${APK}" "${OUT}"
+        # Same apk under a name that never changes, so Downloader on the Fire TV can use one fixed link
+        cp "${APK}" cloudstream-firestick-4k.apk
         echo "file=${OUT}" >> "$GITHUB_OUTPUT"
         echo "short=${SHORT}" >> "$GITHUB_OUTPUT"
 
@@ -114,7 +116,9 @@ jobs:
         {
           echo "Fire TV Stick 4K / 4K Max build of CloudStream (${{ steps.apk.outputs.short }})."
           echo
-          echo "Installs next to the original app as \`com.lagradost.cloudstream3.prerelease\`, and updates itself from this release."
+          echo "Installs as \`com.lagradost.cloudstream3.firetv\` (shown as CloudStream TV), next to the official CloudStream apps, and updates itself from this release."
+          echo
+          echo "Fixed download link for Downloader: https://github.com/${GITHUB_REPOSITORY}/releases/download/pre-release/cloudstream-firestick-4k.apk"
           echo
           echo "### Latest changes"
           git log -n 10 --pretty='- %s'
@@ -122,7 +126,7 @@ jobs:
 
         # The tag moves with every build, the updater compares its commit with the installed one
         gh release delete pre-release --cleanup-tag --yes 2>/dev/null || true
-        gh release create pre-release "${{ steps.apk.outputs.file }}" \
+        gh release create pre-release "${{ steps.apk.outputs.file }}" cloudstream-firestick-4k.apk \
           --prerelease \
           --target "${GITHUB_SHA}" \
           --title "Firestick 4K build ${{ steps.apk.outputs.short }}" \

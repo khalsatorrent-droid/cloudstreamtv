@@ -27,6 +27,8 @@ value class DeviceLayout(private val value: Int) {
             return uiModeManager?.currentModeType == Configuration.UI_MODE_TYPE_TELEVISION || Build.MODEL.contains(
                 "AFT"
             ) || model.contains("firestick") || model.contains("fire tv") || model.contains("chromecast")
+                    // Every Fire OS TV device declares this, whatever its model name is
+                    || runCatching { context.packageManager.hasSystemFeature("amazon.hardware.fire_tv") }.getOrDefault(false)
         }
         internal fun layoutToFlag(context : Context, from : Int): DeviceLayout {
             return when(from) {
