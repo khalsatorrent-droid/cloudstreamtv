@@ -1,6 +1,7 @@
 package com.lagradost.cloudstream3.ui.player
 
 import android.app.Activity
+import android.content.Context
 import android.os.Build
 import android.util.Log
 import android.view.Display
@@ -100,11 +101,11 @@ object FrameRateMatcher {
         refreshRate = refreshRate
     )
 
-    private fun isEnabled(activity: Activity): Boolean {
+    fun isEnabled(context: Context): Boolean {
         // Phones and tablets switch their refresh rate on their own, this is for HDMI outputs
         if (!isLayout(TV or EMULATOR)) return false
-        return PreferenceManager.getDefaultSharedPreferences(activity)
-            .getBoolean(activity.getString(R.string.match_frame_rate_key), true)
+        return PreferenceManager.getDefaultSharedPreferences(context)
+            .getBoolean(context.getString(R.string.match_frame_rate_key), true)
     }
 
     @Suppress("DEPRECATION")
@@ -113,17 +114,20 @@ object FrameRateMatcher {
         else windowManager?.defaultDisplay
     }
 
-    /** Call when the frame rate of the playing video is known, on the main thread. */
-    fun onVideoFrameRate(activity: Activity?, frameRate: Float) {
-        if (activity == null || !isEnabled(activity)) return
+    /**
+     * Call when the frame rate of the playing video is known, on the main thread.
+     * Returns true when the display is switching, the screen then goes black for a moment.
+     */
+    fun onVideoFrameRate(activity: Activity?, frameRate: Float): Boolean {
+        if (activity == null || !isEnabled(activity)) return false
         try {
-            val display = activity.currentDisplay() ?: return
+            val display = activity.currentDisplay() ?: return false
             val modes = display.supportedModes.map { it.toInfo() }
-            val picked = pickMode(modes, display.mode.toInfo(), frameRate) ?: return
+            val picked = pickMode(modes, display.mode.toInfo(), frameRate) ?: return false
 
             val window = activity.window
             val params = window.attributes
-            if (params.preferredDisplayModeId == picked.id) return
+            if (params.preferredDisplayModeId == picked.id) return false
 
             Log.i(
                 TAG,
@@ -132,9 +136,11 @@ object FrameRateMatcher {
             )
             params.preferredDisplayModeId = picked.id
             window.attributes = params
+            return true
         } catch (t: Throwable) {
             // A failed switch must never break playback
             Log.e(TAG, "Failed to match frame rate", t)
+            return false
         }
     }
 

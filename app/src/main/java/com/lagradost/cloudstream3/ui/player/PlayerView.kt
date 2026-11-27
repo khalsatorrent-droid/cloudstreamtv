@@ -791,10 +791,12 @@ class PlayerView @JvmOverloads constructor(
                 }
                 callbacks?.playerDimensionsLoaded(event.width, event.height)
             }
-            is FrameRateEvent -> FrameRateMatcher.onVideoFrameRate(
-                context.getActivity(),
-                event.frameRate
-            )
+            is FrameRateEvent -> {
+                val activity = context.getActivity()
+                if (FrameRateMatcher.onVideoFrameRate(activity, event.frameRate) && activity != null) {
+                    (player as? CS3IPlayer)?.holdForDisplaySwitch(activity)
+                }
+            }
             is PlayerAttachedEvent -> playerUpdated(event.player)
             is SubtitlesUpdatedEvent -> callbacks?.subtitlesChanged()
             is TimestampSkippedEvent -> callbacks?.onTimestampSkipped(event.timestamp)
