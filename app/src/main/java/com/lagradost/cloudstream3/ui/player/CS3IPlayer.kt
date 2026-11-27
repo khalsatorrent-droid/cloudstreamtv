@@ -7,6 +7,7 @@ import android.content.Context
 import android.content.DialogInterface
 import android.graphics.Bitmap
 import android.net.Uri
+import android.hardware.display.DisplayManager
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
@@ -17,6 +18,7 @@ import androidx.annotation.MainThread
 import androidx.annotation.OptIn
 import androidx.appcompat.app.AlertDialog
 import androidx.core.net.toUri
+import androidx.media3.common.C
 import androidx.media3.common.C.TIME_UNSET
 import androidx.media3.common.C.TRACK_TYPE_AUDIO
 import androidx.media3.common.C.TRACK_TYPE_TEXT
@@ -666,6 +668,41 @@ class CS3IPlayer : IPlayer {
         releasePlayer()
     }
 
+    /**
+     * The TV blanks the picture and resyncs HDMI audio while it changes refresh rate. Playing on
+     * through that loses the first seconds of picture and sound, and the audio reset shows up
+     * as buffering. So playback waits until the display reports the new mode (or a few seconds
+     * have passed) and then continues.
+     */
+    fun holdForDisplaySwitch(context: Context) {
+        val held = exoPlayer ?: return
+        if (!held.playWhenReady) return
+        val displayManager = context.getSystemService(DisplayManager::class.java) ?: return
+        val handler = Handler(Looper.getMainLooper())
+        var finished = false
+        lateinit var listener: DisplayManager.DisplayListener
+        val resume = Runnable {
+            if (finished) return@Runnable
+            finished = true
+            displayManager.unregisterDisplayListener(listener)
+            // The player may have been released or replaced while waiting
+            if (exoPlayer === held && !held.playWhenReady) held.playWhenReady = true
+        }
+        listener = object : DisplayManager.DisplayListener {
+            override fun onDisplayChanged(displayId: Int) {
+                // Let the TV lock onto the new signal before the first frame
+                handler.removeCallbacks(resume)
+                handler.postDelayed(resume, DISPLAY_SETTLE_MS)
+            }
+
+            override fun onDisplayAdded(displayId: Int) = Unit
+            override fun onDisplayRemoved(displayId: Int) = Unit
+        }
+        held.playWhenReady = false
+        displayManager.registerDisplayListener(listener, handler)
+        handler.postDelayed(resume, DISPLAY_SWITCH_TIMEOUT_MS)
+    }
+
     override fun setPlaybackSpeed(speed: Float) {
         // A tunneled decoder only plays at normal speed, so leave the tunnel while sped up
         (exoPlayer?.trackSelector as? DefaultTrackSelector)?.let { selector ->
@@ -681,6 +718,9 @@ class CS3IPlayer : IPlayer {
 
     companion object {
         private const val CRONET_TIMEOUT_MS = 15_000
+        private const val TV_READ_BUFFER_BYTES = 512 * 1024
+        private const val DISPLAY_SETTLE_MS = 700L
+        private const val DISPLAY_SWITCH_TIMEOUT_MS = 4000L
         private const val MAX_AUTOMATIC_TARGET_BUFFER_BYTES = 400L * 1024L * 1024L
 
         /**
@@ -808,7 +848,9 @@ class CS3IPlayer : IPlayer {
                 CronetEngine.Builder(context)
                     .enableBrotli(true)
                     .enableHttp2(true)
-                    .enableQuic(true)
+                    // QUIC runs over UDP in the app, its packet and congestion work is all done on
+                    // the CPU. A TV stick moves a 4K stream faster over TCP, which the kernel does
+                    .enableQuic(isLayout(PHONE))
                     .setStoragePath(cacheDirectory.absolutePath)
                     .setLibraryLoader(null)
                     .apply {
@@ -861,6 +903,12 @@ class CS3IPlayer : IPlayer {
                 } else {
                     Log.d(TAG, "Using CronetDataSource for $link")
                     CronetDataSource.Factory(engine, Executors.newSingleThreadExecutor())
+                        .apply {
+                            // The default 32 KB read is a round trip through the executor
+                            // every 32 KB, about 400 a second for a 4K remux, which the stick's
+                            // CPU could not keep up with. Larger reads keep the buffer full
+                            if (!isLayout(PHONE)) setReadBufferSize(TV_READ_BUFFER_BYTES)
+                        }
                         .setUserAgent(userAgent)
                         .setConnectionTimeoutMs(CRONET_TIMEOUT_MS)
                         .setReadTimeoutMs(CRONET_TIMEOUT_MS)
@@ -1503,6 +1551,13 @@ class CS3IPlayer : IPlayer {
             }
         }
         return exoPlayerBuilder.build().apply {
+            if (FrameRateMatcher.isEnabled(context)) {
+                // FrameRateMatcher switches the TV once per video. Media3 would also ask the
+                // display for the frame rate it measures, and on Fire OS 8 (Android 11) that is
+                // not always seamless: a second HDMI resync (black flash) and a reset of the
+                // passthrough audio, which the player shows as buffering
+                setVideoChangeFrameRateStrategy(C.VIDEO_CHANGE_FRAME_RATE_STRATEGY_OFF)
+            }
             setPlayWhenReady(playWhenReady)
             seekTo(currentWindow, playbackPosition)
             // Merge video, subtitles and external audio tracks
