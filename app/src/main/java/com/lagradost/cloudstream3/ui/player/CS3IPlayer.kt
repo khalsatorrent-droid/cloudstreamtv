@@ -739,6 +739,7 @@ class CS3IPlayer : IPlayer {
             val blockingMs = android.os.Debug.getRuntimeStat("art.gc.blocking-gc-time")
             if (gcCount != null) append("GC $gcCount  blocking $blocking ($blockingMs ms)\n")
             append("Memory ${(runtime.totalMemory() - runtime.freeMemory()) / 1_048_576} of ${runtime.maxMemory() / 1_048_576} MB")
+            tvPoolBytes().takeIf { it > 0 }?.let { append("  buffer pool ${it / 1_048_576} MB") }
             if (diagnostics != null) {
                 append("\nRecorder on, problems ${PlaybackDiagnostics.problemCount}")
                 PlaybackDiagnostics.lastProblem?.let { append("\nLast: ${it.take(90)}") }
@@ -812,6 +813,81 @@ class CS3IPlayer : IPlayer {
                 "ExoPlayer:PlaybackTv",
                 android.os.Process.THREAD_PRIORITY_URGENT_AUDIO
             ).apply { start() }
+        }
+
+        /**
+         * TV: one buffer pool for every player, filled before playback.
+         *
+         * Media3 keeps the read ahead in 64 KB arrays on the Java heap. Allocated while the
+         * film plays, they push the heap to its limit every few seconds (the log showed
+         * "0% free" and a collection of about a second each time). Threads that need memory
+         * then wait for the collection, the playback thread included: the picture holds, the
+         * sound runs on and the picture rushes to catch up, the subtitles lag. NuvioTV keeps
+         * its buffer outside the Java heap for this reason.
+         *
+         * Here the arrays are made once, before playback, and reused by every later film, so
+         * the heap does not grow while playing.
+         */
+        private val tvAllocator by lazy {
+            androidx.media3.exoplayer.upstream.DefaultAllocator(false, C.DEFAULT_BUFFER_SEGMENT_SIZE)
+        }
+        private var tvAllocatorCallbacks = false
+
+        @Volatile
+        private var tvAllocatorFill: Thread? = null
+
+        /** Bytes in the TV pool (in use and ready), for the stats */
+        fun tvPoolBytes(): Long = if (isLayout(PHONE)) 0 else tvPoolSize
+
+        @Volatile
+        private var tvPoolSize = 0L
+
+        /** Make sure the pool holds [bytes], on a background thread */
+        private fun fillTvAllocator(context: Context, bytes: Int) {
+            if (!tvAllocatorCallbacks) {
+                tvAllocatorCallbacks = true
+                // Give the memory back once the app is in the background and nothing plays
+                context.applicationContext.registerComponentCallbacks(object :
+                    android.content.ComponentCallbacks2 {
+                    override fun onTrimMemory(level: Int) {
+                        if (level >= android.content.ComponentCallbacks2.TRIM_MEMORY_UI_HIDDEN) trim()
+                    }
+
+                    override fun onConfigurationChanged(newConfig: android.content.res.Configuration) {}
+
+                    @Deprecated("Deprecated in Java")
+                    override fun onLowMemory() = trim()
+
+                    fun trim() {
+                        if (tvAllocatorFill?.isAlive == true) return
+                        if (tvAllocator.totalBytesAllocated != 0) return
+                        tvAllocator.setTargetBufferSize(0)
+                        tvPoolSize = 0
+                    }
+                })
+            }
+            if (tvAllocatorFill?.isAlive == true) return
+            val segment = tvAllocator.individualAllocationLength
+            val wanted = bytes / segment
+            if (tvPoolSize >= wanted.toLong() * segment) return
+            tvAllocatorFill = Thread({
+                val held = ArrayList<androidx.media3.exoplayer.upstream.Allocation>(wanted)
+                val started = android.os.SystemClock.elapsedRealtime()
+                try {
+                    // So the pool keeps what is made here
+                    tvAllocator.setTargetBufferSize(bytes)
+                    while (held.size < wanted) held.add(tvAllocator.allocate())
+                } catch (_: OutOfMemoryError) {
+                    // Keep what fit, minus a margin for the rest of the app
+                    val keep = held.size * 3 / 4
+                    while (held.size > keep) held.removeAt(held.size - 1)
+                } finally {
+                    held.forEach { tvAllocator.release(it) }
+                    if (held.size < wanted) tvAllocator.setTargetBufferSize(held.size * segment)
+                    tvPoolSize = held.size.toLong() * segment
+                    Log.i(TAG, "Buffer pool ${tvPoolSize / 1_048_576} MB in ${android.os.SystemClock.elapsedRealtime() - started} ms")
+                }
+            }, "BufferPoolFill").apply { start() }
         }
 
         /** Measured frame rate by file, see VideoFrameRateProbe. Kept small */
@@ -1361,6 +1437,11 @@ class CS3IPlayer : IPlayer {
         /** External audio tracks to merge with the video */
         audioSources: List<MediaSource> = emptyList()
     ): ExoPlayer {
+        val targetBufferBytes = if (cacheSize <= 0) {
+            automaticTargetBufferBytes()
+        } else {
+            if (cacheSize > Int.MAX_VALUE) Int.MAX_VALUE else cacheSize.toInt()
+        }
         val exoPlayerBuilder =
             ExoPlayer.Builder(context)
                 .apply {
@@ -1566,13 +1647,18 @@ class CS3IPlayer : IPlayer {
                             .setBackBuffer(1_500, true)
                             .build()
                     } else DefaultLoadControl.Builder()
-                        .setTargetBufferBytes(
-                            if (cacheSize <= 0) {
-                                automaticTargetBufferBytes()
-                            } else {
-                                if (cacheSize > Int.MAX_VALUE) Int.MAX_VALUE else cacheSize.toInt()
+                        .setTargetBufferBytes(targetBufferBytes)
+                        .apply {
+                            if (!isLayout(PHONE)) {
+                                // Filled before playback so the heap does not grow while playing,
+                                // never more than the automatic size, which is known to fit
+                                fillTvAllocator(
+                                    context,
+                                    targetBufferBytes.coerceAtMost(automaticTargetBufferBytes())
+                                )
+                                setAllocator(tvAllocator)
                             }
-                        )
+                        }
                         .setBackBuffer(
                             // The back buffer counts towards the target bytes and exoplayer
                             // reads its length only once. On tv a 30s back buffer of a 4K remux
