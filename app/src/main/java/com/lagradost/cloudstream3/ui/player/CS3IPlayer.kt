@@ -1080,7 +1080,8 @@ class CS3IPlayer : IPlayer {
          * drops a frame to catch up every few seconds. Amazon recommends it for 4K
          */
         /**
-         * "Standard playback engine" (TV, on by default). NuvioTV plays the same 4K files
+         * "Standard playback engine" (TV, off by default: on the user's stick it was worse than
+         * the tuned engine with tunneling, so it stays as an option to compare). NuvioTV plays the same 4K files
          * smoothly on a Fire TV with media3 as it comes: its own buffering and mkv extractor,
          * OkHttp, no tunneling. This app used Cronet, CloudStream's copy of the mkv extractor
          * and tuned buffering, and the picture held for a moment now and then. On, the player
@@ -1089,7 +1090,7 @@ class CS3IPlayer : IPlayer {
         fun useStandardEngine(context: Context): Boolean {
             if (isLayout(PHONE)) return false
             return PreferenceManager.getDefaultSharedPreferences(context)
-                .getBoolean(context.getString(R.string.standard_engine_key), true)
+                .getBoolean(context.getString(R.string.standard_engine_key), false)
         }
 
         private fun wantsTunneling(context: Context): Boolean {
