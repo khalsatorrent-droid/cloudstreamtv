@@ -674,6 +674,35 @@ class CS3IPlayer : IPlayer {
      * as buffering. So playback waits until the display reports the new mode (or a few seconds
      * have passed) and then continues.
      */
+    /** Text of the playback stats overlay, see "Show playback stats" in the player settings */
+    @Suppress("DEPRECATION")
+    fun playbackStats(display: android.view.Display?): String? {
+        val p = exoPlayer ?: return null
+        val runtime = Runtime.getRuntime()
+        return buildString {
+            p.videoFormat?.let { f ->
+                append("Video ${f.width}x${f.height} ${f.sampleMimeType?.substringAfter('/') ?: "?"}")
+                f.codecs?.let { append(" $it") }
+                append(if (f.frameRate > 0f) " %.3f fps".format(f.frameRate) else " fps unknown")
+                f.colorInfo?.let { append(" transfer ${it.colorTransfer}") }
+                append('\n')
+            }
+            display?.mode?.let { m ->
+                append("TV %dx%d %.3f Hz\n".format(m.physicalWidth, m.physicalHeight, m.refreshRate))
+            }
+            p.videoDecoderCounters?.let { c ->
+                c.ensureUpdated()
+                append("Dropped ${c.droppedBufferCount}  most in a row ${c.maxConsecutiveDroppedBufferCount}  skipped ${c.skippedOutputBufferCount}\n")
+            }
+            append("Buffer %.1f s\n".format((p.bufferedPosition - p.currentPosition) / 1000f))
+            p.audioFormat?.let { f ->
+                append("Audio ${f.sampleMimeType?.substringAfter('/') ?: "?"} ${f.channelCount} ch\n")
+            }
+            append("Tunneled ${p.isTunnelingEnabled}\n")
+            append("Memory ${(runtime.totalMemory() - runtime.freeMemory()) / 1_048_576} of ${runtime.maxMemory() / 1_048_576} MB")
+        }
+    }
+
     fun holdForDisplaySwitch(context: Context, onDone: () -> Unit = {}) {
         val held = exoPlayer ?: return onDone()
         if (!held.playWhenReady) return onDone()

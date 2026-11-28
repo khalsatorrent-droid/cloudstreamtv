@@ -233,6 +233,45 @@ class PlayerView @JvmOverloads constructor(
      * Discovers player-related views from [root].  IDs absent in compact layouts (e.g. trailer) simply
      * remain null, all usage is null-safe.
      */
+    private val statsHandler = android.os.Handler(android.os.Looper.getMainLooper())
+    private var statsView: android.widget.TextView? = null
+    private val statsUpdater = object : Runnable {
+        override fun run() {
+            val view = statsView ?: return
+            view.text = (player as? CS3IPlayer)?.playbackStats(exoPlayerView?.display) ?: ""
+            statsHandler.postDelayed(this, 1000L)
+        }
+    }
+
+    /** "Show playback stats": a small text in the top left corner, updated every second */
+    private fun setupPlaybackStats() {
+        statsHandler.removeCallbacks(statsUpdater)
+        statsView?.let { (it.parent as? android.view.ViewGroup)?.removeView(it) }
+        statsView = null
+        val overlay = exoPlayerView?.overlayFrameLayout ?: return
+        val enabled = androidx.preference.PreferenceManager.getDefaultSharedPreferences(context)
+            .getBoolean(context.getString(R.string.show_playback_stats_key), false)
+        if (!enabled) return
+        val density = context.resources.displayMetrics.density
+        statsView = android.widget.TextView(context).apply {
+            setTextColor(android.graphics.Color.WHITE)
+            setBackgroundColor(0x99000000.toInt())
+            textSize = 12f
+            typeface = android.graphics.Typeface.MONOSPACE
+            val pad = (8 * density).toInt()
+            setPadding(pad, pad, pad, pad)
+        }
+        overlay.addView(
+            statsView,
+            android.widget.FrameLayout.LayoutParams(
+                android.view.ViewGroup.LayoutParams.WRAP_CONTENT,
+                android.view.ViewGroup.LayoutParams.WRAP_CONTENT,
+                android.view.Gravity.TOP or android.view.Gravity.START
+            ).apply { setMargins((24 * density).toInt(), (24 * density).toInt(), 0, 0) }
+        )
+        statsHandler.post(statsUpdater)
+    }
+
     fun bindViews(root: View) {
         exoDuration = root.findViewById(androidx.media3.ui.R.id.exo_duration)
         exoFfwdText = root.findViewById(R.id.exo_ffwd_text)
@@ -262,6 +301,7 @@ class PlayerView @JvmOverloads constructor(
         subtitleHolder = root.findViewById(R.id.subtitle_holder)
         timeLeft = root.findViewById(R.id.time_left)
         timeLive = root.findViewById(R.id.time_live)
+        setupPlaybackStats()
     }
 
     /**
@@ -492,6 +532,7 @@ class PlayerView @JvmOverloads constructor(
 
     /** Releases all player resources. */
     fun release() {
+        statsHandler.removeCallbacks(statsUpdater)
         player.release()
         player.releaseCallbacks()
         player = CS3IPlayer()

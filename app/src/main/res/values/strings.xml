@@ -375,6 +375,8 @@
     <string name="pref_category_android_tv">Android TV</string>
     <string name="match_frame_rate_settings">Match frame rate</string>
     <string name="tunneled_playback_settings">Tunneled playback</string>
+    <string name="show_playback_stats_settings">Show playback stats</string>
+    <string name="show_playback_stats_settings_des">Frame rate, TV refresh rate, dropped frames, buffer and memory in a corner of the player, to find the cause of stutter</string>
     <string name="tunneled_playback_settings_des">The TV hardware keeps video in step with the audio, which stops the small stutter every few seconds in 4K. Turn off if a video plays without picture or sound</string>
     <string name="match_frame_rate_settings_des">Switch the TV to the refresh rate of the video (24, 25, 30, 50 or 60 Hz) to avoid judder. The TV blanks for a moment when it switches, this happens behind the loading screen</string>
     <string name="match_frame_rate_off">Off</string>

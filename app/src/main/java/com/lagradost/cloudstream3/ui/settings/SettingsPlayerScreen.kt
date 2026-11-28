@@ -210,6 +210,12 @@ object SettingsPlayerScreen : SearchableSettings {
                         icon = painterResource(R.drawable.ic_baseline_speed_24),
                     ),
                     Preference.PreferenceItem.SwitchPreference(
+                        preference = settings.player.showPlaybackStats,
+                        title = stringResource(R.string.show_playback_stats_settings),
+                        subtitle = stringResource(R.string.show_playback_stats_settings_des),
+                        icon = painterResource(R.drawable.ic_outline_info_24),
+                    ),
+                    Preference.PreferenceItem.SwitchPreference(
                         preference = settings.player.extraBrightnessEnabled,
                         title = stringResource(R.string.extra_brightness_settings),
                         subtitle = stringResource(R.string.extra_brightness_settings_des),
