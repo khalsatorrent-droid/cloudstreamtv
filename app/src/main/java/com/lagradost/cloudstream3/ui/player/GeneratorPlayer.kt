@@ -2048,6 +2048,8 @@ class GeneratorPlayer : FullScreenPlayer() {
     override fun playerDimensionsLoaded(width: Int, height: Int) {
         super.playerDimensionsLoaded(width, height)
         setPlayerDimen(width to height)
+        // The video plays now, see stopLoadingLinksInBackground
+        if (!isLayout(PHONE)) viewModel.stopLoadingLinksInBackground()
     }
 
     private fun unwrapBundle(savedInstanceState: Bundle?) {

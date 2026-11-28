@@ -7,6 +7,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.lagradost.cloudstream3.LoadResponse
 import com.lagradost.cloudstream3.mvvm.Resource
+import com.lagradost.cloudstream3.ui.settings.Globals.PHONE
+import com.lagradost.cloudstream3.ui.settings.Globals.isLayout
 import com.lagradost.cloudstream3.mvvm.launchSafe
 import com.lagradost.cloudstream3.mvvm.logError
 import com.lagradost.cloudstream3.mvvm.safeApiCall
@@ -280,7 +282,26 @@ class PlayerGeneratorViewModel : ViewModel() {
         return generator?.hasPrev(episodeIndex)
     }
 
+    /**
+     * After "Skip loading" (or an automatic skip) the video plays while every extension keeps
+     * looking for more sources: bursts of requests and page parsing for a while. A TV stick has
+     * little CPU to spare next to 4K video, and the picture held for a moment at random. Once
+     * the video plays, the TV stops that search, the sources found so far stay in the list.
+     * Returns true if a search was stopped.
+     */
+    fun stopLoadingLinksInBackground(): Boolean {
+        val job = currentJob ?: return false
+        if (!job.isActive || state.loading !is Resource.Success) return false
+        Log.i(TAG, "stopLoadingLinksInBackground")
+        job.cancel()
+        currentLoadingEpisodeId = null
+        return true
+    }
+
     fun preLoadNextLinks() {
+        // TV: loading the next episode's links is the same background work as above, in the
+        // last fifth of an episode. The next episode then loads its links when it starts
+        if (!isLayout(PHONE)) return
         val id = generator?.getId(episodeIndex)
         // Do not preload if already loading
         if (id == currentLoadingEpisodeId) return
