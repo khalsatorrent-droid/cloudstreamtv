@@ -1653,6 +1653,9 @@ class CS3IPlayer : IPlayer {
         }
         // A file that states the wrong frame rate (23.976 fps labelled 24) is corrected from its
         // timestamps, the display then switches to the real rate
+        androidx.media3.extractor.mkv.UpdatedMatroskaExtractor.playDolbyVision8AsHdr10 =
+            !isLayout(PHONE) && PreferenceManager.getDefaultSharedPreferences(context)
+                .getBoolean(context.getString(R.string.dolby_vision_as_hdr10_key), false)
         val rateKey = frameRateKey
         VideoFrameRateProbe.lastMeasured = rateKey?.let { measuredFrameRates[it] } ?: 0f
         VideoFrameRateProbe.listener = if (FrameRateMatcher.isEnabled(context)) {

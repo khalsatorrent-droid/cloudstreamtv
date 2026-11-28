@@ -179,6 +179,7 @@ class PlayerPreferences(preferences: PreferenceStore) {
     val matchFrameRateMode = preferences.getInt("match_frame_rate_mode_key", 0)
     val tunneledPlayback = preferences.getBoolean("tunneled_playback_key", true)
     val showPlaybackStats = preferences.getBoolean("show_playback_stats_key", false)
+    val dolbyVisionAsHdr10 = preferences.getBoolean("dolby_vision_as_hdr10_key", false)
     val extraBrightnessEnabled = preferences.getBoolean("extra_brightness_enabled", false)
     val swipeHorizontalEnabled = preferences.getBoolean("swipe_enabled_key", true)
     val swipeVerticalEnabled = preferences.getBoolean("swipe_vertical_enabled_key", true)

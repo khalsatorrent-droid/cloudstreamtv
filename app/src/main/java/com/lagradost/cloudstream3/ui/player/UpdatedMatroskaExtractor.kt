@@ -2770,8 +2770,20 @@ class UpdatedMatroskaExtractor private constructor(
          * Its base layer is plain HDR10 though, and a normal HEVC decoder skips the Dolby layers,
          * so on TV it plays as HDR10, which is how other players on these devices handle it.
          */
-        private fun playAsHdr10(dolbyVisionProfile: Int): Boolean =
-            dolbyVisionProfile == 7 && !isLayout(PHONE)
+        private fun playAsHdr10(dolbyVisionProfile: Int): Boolean = when (dolbyVisionProfile) {
+            7 -> !isLayout(PHONE)
+            // Profile 8 has an HDR10 (8.1), HLG (8.4) or SDR (8.2) base layer, so it plays
+            // correctly without Dolby Vision. Optional: it spares the TV stick the Dolby Vision
+            // processing of every 4K frame, which on some files made the picture hold and
+            // catch up. Profile 5 has no such base layer and always stays Dolby Vision
+            8 -> playDolbyVision8AsHdr10
+            else -> false
+        }
+
+        /** "Dolby Vision as HDR10" in the player settings, set by CS3IPlayer */
+        @JvmStatic
+        @Volatile
+        var playDolbyVision8AsHdr10 = false
 
         /**
          * BlockAddIdType value for Dolby Vision configuration with profile > 7. See also
