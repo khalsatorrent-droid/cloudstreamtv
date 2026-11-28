@@ -613,6 +613,28 @@ class CS3IPlayer : IPlayer {
         }
     }
 
+    /** Logs stutter details (tag CS3Diag) while "Show playback stats" is on */
+    private var diagnostics: PlaybackDiagnostics? = null
+
+    private fun startDiagnostics(context: Context) {
+        diagnostics?.stop()
+        diagnostics = null
+        val enabled = try {
+            PreferenceManager.getDefaultSharedPreferences(context)
+                .getBoolean(context.getString(R.string.show_playback_stats_key), false)
+        } catch (_: Throwable) {
+            false
+        }
+        val player = exoPlayer ?: return
+        if (!enabled) return
+        diagnostics = try {
+            PlaybackDiagnostics(player).also { it.start() }
+        } catch (t: Throwable) {
+            logError(t)
+            null
+        }
+    }
+
     private fun releasePlayer(saveTime: Boolean = true) {
         Log.i(TAG, "releasePlayer")
         eventLooperIndex += 1
@@ -622,6 +644,8 @@ class CS3IPlayer : IPlayer {
         currentTextRenderer = null
         currentSubtitleDecoder = null
 
+        diagnostics?.stop()
+        diagnostics = null
         exoPlayer?.apply {
             playWhenReady = false
 
@@ -1788,6 +1812,7 @@ class CS3IPlayer : IPlayer {
 
             event(PlayerAttachedEvent(exoPlayer))
             exoPlayer?.prepare()
+            startDiagnostics(context)
 
             // For offline fragmented MP4s, FLAG_MERGE_FRAGMENTED_SIDX builds the SIDX seek map
             // incrementally as data is buffered. The initial seek resolves to the nearest merged
