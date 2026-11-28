@@ -776,7 +776,7 @@ class CS3IPlayer : IPlayer {
         private const val DISPLAY_SETTLE_MS = 700L
         private const val DISPLAY_SWITCH_TIMEOUT_MS = 4000L
         private const val MAX_AUTOMATIC_TARGET_BUFFER_BYTES = 400L * 1024L * 1024L
-        private const val TV_HEAP_RESERVE_BYTES = 160L * 1024L * 1024L
+        private const val TV_HEAP_RESERVE_BYTES = 176L * 1024L * 1024L
 
         /** Measured frame rate by file, see VideoFrameRateProbe. Kept small */
         private val measuredFrameRates = object : LinkedHashMap<String, Float>(16, 0.75f, true) {
@@ -809,10 +809,10 @@ class CS3IPlayer : IPlayer {
             val maxHeap = Runtime.getRuntime().maxMemory()
             if (!isLayout(PHONE)) {
                 // TV: the read ahead is what rides out a slow moment of the server or Wi-Fi, so
-                // it gets close to half the heap (30 s up to about 45 Mbps on a 384 MB heap).
-                // 60% was too much: starting the next video while the last one's buffer was not
-                // collected yet could run the app out of memory. The app keeps 160 MB
-                return (maxHeap * 9 / 20)
+                // it gets 40% of the heap (about 150 MB of 384 MB: 45 s of a 25 GB film at
+                // 28 Mbps, 13 s of an 80 GB remux). More ran the app short of memory, so the
+                // rest of the app always keeps at least 176 MB
+                return (maxHeap * 2 / 5)
                     .coerceAtMost(MAX_AUTOMATIC_TARGET_BUFFER_BYTES)
                     .coerceAtMost(maxHeap - TV_HEAP_RESERVE_BYTES)
                     // A small heap still gets a quarter of it
@@ -1656,6 +1656,16 @@ class CS3IPlayer : IPlayer {
         androidx.media3.extractor.mkv.UpdatedMatroskaExtractor.playDolbyVision8AsHdr10 =
             !isLayout(PHONE) && PreferenceManager.getDefaultSharedPreferences(context)
                 .getBoolean(context.getString(R.string.dolby_vision_as_hdr10_key), false)
+        if (!isLayout(PHONE)) {
+            // Posters of the home page are kept in memory for smooth scrolling (up to 15% of the
+            // heap on TV). Nothing shows them while a video plays, so their memory goes to the
+            // video buffer; they load again from the disk cache when the home page comes back
+            try {
+                coil3.SingletonImageLoader.get(context).memoryCache?.clear()
+            } catch (t: Throwable) {
+                logError(t)
+            }
+        }
         val rateKey = frameRateKey
         VideoFrameRateProbe.lastMeasured = rateKey?.let { measuredFrameRates[it] } ?: 0f
         VideoFrameRateProbe.listener = if (FrameRateMatcher.isEnabled(context)) {
