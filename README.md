@@ -1,20 +1,60 @@
-# CloudStream
+# CloudStream TV
+
+A fork of [CloudStream](https://github.com/recloudstream/cloudstream), tuned for the **Amazon Fire TV Stick 4K / 4K Plus / 4K Max** (Fire OS 8). It is the same app with the same extensions, made smoother on a TV stick: 4K HDR and Dolby Vision playback, remote-friendly navigation, and fixes that matter on a slower device.
 
 **⚠️ Warning: By default, this app doesn't provide any video sources; you have to install extensions to add functionality to the app.**
+
 <p align="left"><a href="https://github.com/khalsatorrent-droid/cloudstreamtv/releases/download/pre-release/cloudstream-firestick-4k.apk"><img src=".github/images/download-cloudstream-pre.png" alt="Download CloudStream TV for Fire TV" width=430/></a></p>
 
-### Fire TV Stick 4K / 4K Plus / 4K Max
+## Install on a Fire TV
 
-In Downloader, open `https://github.com/khalsatorrent-droid/cloudstreamtv/releases/download/pre-release/cloudstream-firestick-4k.apk` and install.
-The app shows up as **CloudStream TV** (`com.lagradost.cloudstream3.firetv`), next to any official CloudStream app, and updates itself from this repo.
-If a sideloaded app does not appear on the home row, look under *Your Apps & Channels → See All*, or *Settings → Applications → Manage Installed Applications*.
+1. On the Fire TV, install **Downloader** from the Amazon Appstore and allow it to install unknown apps in *Settings → My Fire TV → Developer options*. If Developer options is missing, open *Settings → My Fire TV → About* and click the device name 7 times.
+2. In Downloader, open
+   `https://github.com/khalsatorrent-droid/cloudstreamtv/releases/download/pre-release/cloudstream-firestick-4k.apk`
+   and install it.
+3. The app appears as **CloudStream TV**. If it is not on the home row, look under *Your Apps & Channels → See All*.
 
-#### Simkl sign-in on the TV
+It installs as `com.lagradost.cloudstream3.firetv`, so it sits next to any official CloudStream app instead of replacing it, and it updates itself from the releases of this repo.
 
-The release needs a Simkl app key. Create an app at simkl.com (developer settings) with the redirect URI `cloudstreamapp://simkl`, then add its Client ID and Client Secret to this repo as the Actions secrets `SIMKL_CLIENT_ID` and `SIMKL_CLIENT_SECRET`. The next release can then sign in: Settings → Accounts → Simkl shows a code and a QR code to finish on your phone, without a browser on the TV.
+## What is different from CloudStream
+
+**Playback**
+- **4K remuxes without stutter**: video downloads with larger reads and over TCP (QUIC costs too much CPU on a stick), skips the app's web cache, and keeps at least 30 s loaded ahead as far as memory allows.
+- **Frame rate matching** (*Settings → Player → Match frame rate*): *Off* (default), *On start* (switch once, keep the mode for the next video) or *On start and stop*. The switch happens behind a loading screen, menus over the player keep the mode, and the app measures the real frame rate of mkv files so a 23.976 fps file labelled 24 does not hold a frame every 40 seconds.
+- **Tunneled playback** (*Settings → Player → Tunneled playback*, on by default): the TV hardware keeps video in step with the audio.
+- **Dolby Vision profile 7** (UHD Blu-ray remuxes) plays as HDR10 on the TV, as Fire TV can only decode profiles 5 and 8. Profiles 5 and 8 stay Dolby Vision.
+- **Audio**: when a film has both TrueHD/DTS-HD and Dolby Digital (Plus) in the same language, the Dolby track is chosen, so it goes to the TV or soundbar as is instead of being decoded on the stick's CPU.
+- **Playback stats** (*Settings → Player → Show playback stats*): frame rate (stated and measured), TV refresh rate, dropped frames, buffer, audio, tunneling and memory, to find the cause of any stutter.
+
+**On the TV home page**
+- A **See all** tile at the start of every category row opens the whole category as a grid that keeps loading pages as you scroll with the remote.
+- Lists lay out the next posters ahead of the remote and keep posters in memory, so holding the D-pad does not stutter.
+
+**Fixes**
+- Installs and shows up on the Fire TV launcher (own package name, a proper TV banner).
+- Subtitle settings no longer stutter while a video is paused.
+- Simkl sign-in on the TV uses a code and QR code only, no browser.
+- Startup and settings screens are pre-compiled at install (baseline profile).
+
+## Settings worth checking on the Fire TV
+
+- *Settings → Display & Sounds → Display → Match Original Frame Rate*: on, if you use frame rate matching in the app.
+- *Settings → Display & Sounds → Display → Dynamic Range Settings*: Adaptive. "Always HDR" makes normal video look washed out.
+- After an update the app is a little slower until Fire OS compiles it while the TV is idle, usually overnight.
+
+## For the maintainer of this fork
+
+- **Releases**: every push to `master` builds the Fire TV apk (`.github/workflows/firestick-release.yml`) and replaces the `pre-release` release, including the fixed-name `cloudstream-firestick-4k.apk`.
+- **Account keys**: Simkl, MAL and AniList sign-in need keys stored as repository secrets (*Settings → Secrets and variables → Actions*): `SIMKL_CLIENT_ID`, `SIMKL_CLIENT_SECRET`, `MAL_KEY`, `ANILIST_KEY`. For Simkl, create an app in the Simkl developer settings with the redirect URI `cloudstreamapp://simkl`. The build log says whether the Simkl key is set, without printing it.
+- **Updating from CloudStream**: merge `recloudstream/cloudstream` `master` into this fork. The Fire TV changes live mostly in `ui/player` (`CS3IPlayer`, `FrameRateMatcher`, `VideoFrameRateProbe`, `UpdatedMatroskaExtractor`), the home adapters and `app/build.gradle.kts`.
+
+Problems with this fork go to [this repo's issues](https://github.com/khalsatorrent-droid/cloudstreamtv/issues), not to the CloudStream team. Everything below is from the original CloudStream README.
+
+---
+
+## CloudStream
 
 [![Discord](https://invidget.switchblade.xyz/5Hus6fM)](https://discord.gg/5Hus6fM)
-
 
 ## Table of Contents: 
 + [About Us:](#about_us)
@@ -71,7 +111,7 @@ Our documentation provides the steps to install and configure CloudStream for yo
 <a id="contributing"></a>
 
 ## Contributing:
-We **happily** accept any contributions to our project. To find out where you can start contributing towards the project, please look [at our issues tab](/cloudstream/issues)
+We **happily** accept any contributions to our project. To find out where you can start contributing towards the project, please look [at the CloudStream issues tab](https://github.com/recloudstream/cloudstream/issues)
 
 
 
