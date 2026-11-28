@@ -146,6 +146,14 @@ class CS3IPlayer : IPlayer {
     private var playerListener: Player.Listener? = null
     private var isPlaying = false
     private var exoPlayer: ExoPlayer? = null
+
+    /** Which file is playing, for [measuredFrameRates] */
+    @Volatile
+    private var frameRateKey: String? = null
+
+    /** Video decoder in use, for the playback stats */
+    @Volatile
+    private var videoDecoderName: String? = null
         set(value) {
             // If the old value is not null then the player has not been properly released.
             debugAssert(
@@ -296,6 +304,7 @@ class CS3IPlayer : IPlayer {
         preview: Boolean,
     ) {
         Log.i(TAG, "loadPlayer")
+        frameRateKey = link?.url ?: data?.uri?.toString()
         if (sameEpisode) {
             saveData()
         } else {
@@ -697,7 +706,14 @@ class CS3IPlayer : IPlayer {
             p.audioFormat?.let { f ->
                 append("Audio ${f.sampleMimeType?.substringAfter('/') ?: "?"} ${f.channelCount} ch\n")
             }
-            append("Tunneled ${p.isTunnelingEnabled}\n")
+            append("Tunneled ${p.isTunnelingEnabled}")
+            videoDecoderName?.let { append("  decoder $it") }
+            append('\n')
+            // Blocking collections stop every thread, the video decoder can run dry meanwhile
+            val gcCount = android.os.Debug.getRuntimeStat("art.gc.gc-count")
+            val blocking = android.os.Debug.getRuntimeStat("art.gc.blocking-gc-count")
+            val blockingMs = android.os.Debug.getRuntimeStat("art.gc.blocking-gc-time")
+            if (gcCount != null) append("GC $gcCount  blocking $blocking ($blockingMs ms)\n")
             append("Memory ${(runtime.totalMemory() - runtime.freeMemory()) / 1_048_576} of ${runtime.maxMemory() / 1_048_576} MB")
         }
     }
@@ -762,9 +778,22 @@ class CS3IPlayer : IPlayer {
         private const val MAX_AUTOMATIC_TARGET_BUFFER_BYTES = 400L * 1024L * 1024L
         private const val TV_HEAP_RESERVE_BYTES = 160L * 1024L * 1024L
 
-        /** TV: always keep at least this much video loaded ahead (as far as memory allows) */
-        private const val TV_MIN_BUFFER_MS = 30_000
-        private const val TV_MAX_BUFFER_MS = 60_000
+        /** Measured frame rate by file, see VideoFrameRateProbe. Kept small */
+        private val measuredFrameRates = object : LinkedHashMap<String, Float>(16, 0.75f, true) {
+            override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, Float>?) =
+                size > 32
+        }
+
+        /**
+         * TV: keep this much video loaded ahead (as far as memory allows). Minimum and maximum
+         * are the same on purpose, like the media3 default: loading then tops the buffer up
+         * steadily. With 30 s / 60 s it stopped at 60 s and only started again at 30 s, then
+         * pulled 30 s of 4K at full speed in one burst every half minute. That burst of
+         * network, decryption and parsing work starved the video decoder: the picture held
+         * for a moment, then sped up to catch up with the sound
+         */
+        private const val TV_MIN_BUFFER_MS = 45_000
+        private const val TV_MAX_BUFFER_MS = 45_000
 
         /**
          * TV: after running dry, wait for this much before playing again. With the default 5 s
@@ -1624,9 +1653,15 @@ class CS3IPlayer : IPlayer {
         }
         // A file that states the wrong frame rate (23.976 fps labelled 24) is corrected from its
         // timestamps, the display then switches to the real rate
-        VideoFrameRateProbe.lastMeasured = 0f
+        val rateKey = frameRateKey
+        VideoFrameRateProbe.lastMeasured = rateKey?.let { measuredFrameRates[it] } ?: 0f
         VideoFrameRateProbe.listener = if (FrameRateMatcher.isEnabled(context)) {
-            { fps -> event(FrameRateEvent(fps)) }
+            { fps ->
+                // Remembered per file: re-reading the stated rate later (another audio track,
+                // a reload) must not send the TV back to the wrong rate
+                rateKey?.let { synchronized(measuredFrameRates) { measuredFrameRates[it] = fps } }
+                event(FrameRateEvent(fps))
+            }
         } else null
 
         return exoPlayerBuilder.build().apply {
@@ -2273,14 +2308,28 @@ class CS3IPlayer : IPlayer {
 
     private val tracksAnalyticsListener = object : AnalyticsListener {
 
+        override fun onVideoDecoderInitialized(
+            eventTime: AnalyticsListener.EventTime,
+            decoderName: String,
+            initializedTimestampMs: Long,
+            initializationDurationMs: Long
+        ) {
+            videoDecoderName = decoderName
+        }
+
         override fun onVideoInputFormatChanged(
             eventTime: AnalyticsListener.EventTime,
             format: Format,
             decoderReuseEvaluation: DecoderReuseEvaluation?
         ) {
-            // Fires before the first frame is shown, so the display can switch while buffering
-            if (format.frameRate > 0f) {
-                event(FrameRateEvent(format.frameRate))
+            // Fires before the first frame is shown, so the display can switch while buffering.
+            // It fires again whenever the video is re-read (track change, reload). If the real
+            // rate of this file was measured, that one wins over the rate the file states,
+            // else the TV went back to e.g. 24.000 Hz for 23.976 fps video
+            val measured = frameRateKey?.let { synchronized(measuredFrameRates) { measuredFrameRates[it] } }
+            val rate = measured ?: format.frameRate
+            if (rate > 0f) {
+                event(FrameRateEvent(rate))
             }
             event(TracksChangedEvent())
         }
