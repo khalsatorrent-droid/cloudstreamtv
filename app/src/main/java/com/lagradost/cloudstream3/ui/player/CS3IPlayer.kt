@@ -882,7 +882,7 @@ class CS3IPlayer : IPlayer {
                     val keep = held.size * 3 / 4
                     while (held.size > keep) held.removeAt(held.size - 1)
                 } finally {
-                    tvAllocator.release(held.toTypedArray())
+                    held.forEach { tvAllocator.release(it) }
                     if (held.size < wanted) tvAllocator.setTargetBufferSize(held.size * segment)
                     tvPoolSize = held.size.toLong() * segment
                     Log.i(TAG, "Buffer pool ${tvPoolSize / 1_048_576} MB in ${android.os.SystemClock.elapsedRealtime() - started} ms")
