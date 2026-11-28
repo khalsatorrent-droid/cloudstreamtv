@@ -312,6 +312,19 @@ class HomeFragment : BaseFragment<FragmentHomeBinding>(
                 // A half open sheet has nothing to drag with on a remote, open it all the way
                 bottomSheetDialogBuilder.behavior.skipCollapsed = true
                 bottomSheetDialogBuilder.behavior.state = BottomSheetBehavior.STATE_EXPANDED
+                // The grid is wrap_content, so on a phone the sheet scrolls by dragging. A remote
+                // can not drag: the grid was taller than the screen and never scrolled, focus
+                // went down to rows below the screen. On TV the grid gets the screen height
+                // under the title and scrolls by itself
+                val metrics = context.resources.displayMetrics
+                binding.homeExpandedDragDown.measure(
+                    View.MeasureSpec.makeMeasureSpec(metrics.widthPixels, View.MeasureSpec.EXACTLY),
+                    View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED)
+                )
+                binding.homeExpandedRecycler.layoutParams =
+                    binding.homeExpandedRecycler.layoutParams.apply {
+                        height = metrics.heightPixels - binding.homeExpandedDragDown.measuredHeight
+                    }
             }
 
             bottomSheetDialogBuilder.show()
