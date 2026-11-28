@@ -1,7 +1,9 @@
 package com.lagradost.cloudstream3.ui.result
 
 import android.content.Context
+import android.os.SystemClock
 import android.view.View
+import android.view.animation.DecelerateInterpolator
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.lagradost.cloudstream3.CommonActivity
@@ -221,6 +223,9 @@ open class LinearListLayout(context: Context?) :
         extraLayoutSpace[1] = extra
     }
 
+    private var lastTvScrollMs = 0L
+    private val tvScrollInterpolator = DecelerateInterpolator()
+
     override fun requestChildRectangleOnScreen(
         parent: RecyclerView,
         child: View,
@@ -234,9 +239,20 @@ open class LinearListLayout(context: Context?) :
                 else -> getDecoratedLeft(child) - parent.paddingLeft
             }
             return if (dx != 0) {
+                // The default smooth scroll takes about a quarter second per poster. Pressing or
+                // holding the remote faster than that left the row trailing behind the focus.
+                // A press soon after the last one moves the row at once, a single press still
+                // glides, just quicker
+                val now = SystemClock.uptimeMillis()
+                val pressedQuickly = now - lastTvScrollMs < TV_QUICK_PRESS_MS
+                lastTvScrollMs = now
                 when {
-                    immediate -> parent.scrollBy(dx, 0)
-                    else -> parent.smoothScrollBy(dx, 0)
+                    immediate || pressedQuickly -> {
+                        parent.stopScroll()
+                        parent.scrollBy(dx, 0)
+                    }
+
+                    else -> parent.smoothScrollBy(dx, 0, tvScrollInterpolator, TV_SCROLL_MS)
                 }
                 true
             } else {
@@ -301,3 +317,9 @@ open class LinearListLayout(context: Context?) :
      return true
 }*/
 }
+
+/** Duration of the glide to the next poster on TV */
+private const val TV_SCROLL_MS = 120
+
+/** Presses closer together than this move the row at once */
+private const val TV_QUICK_PRESS_MS = 200L
