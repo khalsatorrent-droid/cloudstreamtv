@@ -7,6 +7,9 @@ import androidx.core.content.withStyledAttributes
 import androidx.core.view.children
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.lagradost.cloudstream3.ui.settings.Globals.EMULATOR
+import com.lagradost.cloudstream3.ui.settings.Globals.TV
+import com.lagradost.cloudstream3.ui.settings.Globals.isLayout
 import kotlin.math.abs
 
 class GrdLayoutManager(val context: Context, spanCount: Int) :
@@ -20,10 +23,27 @@ class GrdLayoutManager(val context: Context, spanCount: Int) :
         return try {
             val fromPos = getPosition(focused)
             val nextPos = getNextViewPos(fromPos, focusDirection)
+            // Not laid out yet (a row below the screen): let the grid scroll to it and return
+            // it, else the remote could never get past the rows that are already on screen
             findViewByPosition(nextPos)
+                ?: super.onFocusSearchFailed(focused, focusDirection, recycler, state)
         } catch (e: Exception) {
             null
         }
+    }
+
+    /**
+     * On TV, lay out half a screen more above and below, so the row the remote moves to next is
+     * already there and focus never waits on a scroll
+     */
+    override fun calculateExtraLayoutSpace(state: RecyclerView.State, extraLayoutSpace: IntArray) {
+        if (!isLayout(TV or EMULATOR)) {
+            super.calculateExtraLayoutSpace(state, extraLayoutSpace)
+            return
+        }
+        val extra = (if (orientation == VERTICAL) height else width) / 2
+        extraLayoutSpace[0] = extra
+        extraLayoutSpace[1] = extra
     }
 
     /*override fun onRequestChildFocus(

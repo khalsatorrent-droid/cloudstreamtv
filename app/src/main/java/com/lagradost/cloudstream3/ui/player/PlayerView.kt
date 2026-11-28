@@ -536,6 +536,9 @@ class PlayerView @JvmOverloads constructor(
         player.release()
         player.releaseCallbacks()
         player = CS3IPlayer()
+        // The released buffer is a few hundred MB on TV. Ask for it to be collected now, not
+        // while the next video is filling its own buffer
+        Runtime.getRuntime().gc()
 
         // The activity window outlives the player, put the display back to the user's mode
         FrameRateMatcher.reset(context.getActivity())

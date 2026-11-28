@@ -237,6 +237,7 @@ class HomeFragment : BaseFragment<FragmentHomeBinding>(
             val name = expand.list.name
             var loadingMore = false
             var lastRequestedCount = -1
+            var retries = 0
             val recycler = binding.homeExpandedRecycler
             fun loadMoreIfNeeded() {
                 val adapter = recycler.adapter as? SearchAdapter ?: return
@@ -252,22 +253,33 @@ class HomeFragment : BaseFragment<FragmentHomeBinding>(
                 loadingMore = true
                 lastRequestedCount = count
                 ioSafe {
-                    try {
-                        expandCallback.invoke(name)?.let { newExpand ->
-                            main {
-                                (recycler.adapter as? SearchAdapter)?.apply {
-                                    hasNext = newExpand.hasNext
-                                    submitList(newExpand.list.list) {
-                                        loadingMore = false
-                                        // The new page may still not reach the end of the screen
-                                        recycler.post { loadMoreIfNeeded() }
-                                    }
-                                } ?: run { loadingMore = false }
-                            }
-                        } ?: run { loadingMore = false }
+                    val newExpand = try {
+                        expandCallback.invoke(name)
                     } catch (t: Throwable) {
-                        loadingMore = false
-                        throw t
+                        null
+                    }
+                    main {
+                        val grid = recycler.adapter as? SearchAdapter
+                        // Null when the home row is loading its own next page at the same time
+                        // (or the request failed). That used to count as done, so the grid never
+                        // asked again and stayed at the first page. Ask again shortly instead
+                        if (newExpand == null || grid == null ||
+                            newExpand.list.list.size <= grid.itemCount && newExpand.hasNext
+                        ) {
+                            loadingMore = false
+                            lastRequestedCount = -1
+                            if (grid != null && grid.hasNext && retries++ < 5) {
+                                recycler.postDelayed({ loadMoreIfNeeded() }, 1500L)
+                            }
+                            return@main
+                        }
+                        retries = 0
+                        grid.hasNext = newExpand.hasNext
+                        grid.submitList(newExpand.list.list) {
+                            loadingMore = false
+                            // The new page may still not reach the end of the screen
+                            recycler.post { loadMoreIfNeeded() }
+                        }
                     }
                 }
             }

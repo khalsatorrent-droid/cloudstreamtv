@@ -49,6 +49,7 @@ import androidx.media3.common.util.ParsableByteArray
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.common.util.Util
 import androidx.media3.container.DolbyVisionConfig
+import com.lagradost.cloudstream3.ui.player.VideoFrameRateProbe
 import com.lagradost.cloudstream3.ui.settings.Globals.PHONE
 import com.lagradost.cloudstream3.ui.settings.Globals.isLayout
 import androidx.media3.container.NalUnitUtil
@@ -1260,6 +1261,13 @@ class UpdatedMatroskaExtractor private constructor(
         track: Track, timeUs: Long, flags: @BufferFlags Int, size: Int, offset: Int
     ) {
         var size = size
+        if (track.type == C.TRACK_TYPE_VIDEO) {
+            val sampler = track.frameRateSampler ?: VideoFrameRateProbe.Sampler(
+                if (track.defaultSampleDurationNs > 0) 1_000_000_000f / track.defaultSampleDurationNs
+                else 0f
+            ).also { track.frameRateSampler = it }
+            sampler.add(timeUs)
+        }
         if (track.trueHdSampleRechunker != null) {
             track.trueHdSampleRechunker!!.sampleMetadata(
                 track.output!!, timeUs, flags, size, offset, track.cryptoData
@@ -1776,6 +1784,9 @@ class UpdatedMatroskaExtractor private constructor(
         var number: Int = 0
         var type: @C.TrackType Int = 0
         var defaultSampleDurationNs: Int = 0
+
+        /** Measures the real frame rate of a video track, see [VideoFrameRateProbe] */
+        var frameRateSampler: VideoFrameRateProbe.Sampler? = null
         var maxBlockAdditionId: Int = 0
         var blockAddIdType: Int = 0
         var hasContentEncryption: Boolean = false
