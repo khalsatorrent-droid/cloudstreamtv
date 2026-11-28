@@ -32,6 +32,28 @@ class GrdLayoutManager(val context: Context, spanCount: Int) :
         }
     }
 
+    private var lastScrollRequestMs = 0L
+
+    /** On TV a press soon after the last one moves the grid at once instead of gliding behind */
+    override fun requestChildRectangleOnScreen(
+        parent: RecyclerView,
+        child: View,
+        rect: android.graphics.Rect,
+        immediate: Boolean,
+        focusedChildVisible: Boolean
+    ): Boolean {
+        if (!isLayout(TV or EMULATOR)) {
+            return super.requestChildRectangleOnScreen(parent, child, rect, immediate, focusedChildVisible)
+        }
+        val now = android.os.SystemClock.uptimeMillis()
+        val pressedQuickly = now - lastScrollRequestMs < 200L
+        lastScrollRequestMs = now
+        if (pressedQuickly) parent.stopScroll()
+        return super.requestChildRectangleOnScreen(
+            parent, child, rect, immediate || pressedQuickly, focusedChildVisible
+        )
+    }
+
     /**
      * On TV, lay out half a screen more above and below, so the row the remote moves to next is
      * already there and focus never waits on a scroll

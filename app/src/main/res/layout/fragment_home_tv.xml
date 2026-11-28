@@ -132,7 +132,7 @@
         android:descendantFocusability="afterDescendants"
         android:nextFocusLeft="@id/navigation_home"
         android:nextFocusUp="@id/home_bookmarked_child_recyclerview"
-        app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
+        app:layoutManager="com.lagradost.cloudstream3.ui.home.TvVerticalLayoutManager"
         tools:listitem="@layout/homepage_parent_tv"
         tools:visibility="gone" />
 
