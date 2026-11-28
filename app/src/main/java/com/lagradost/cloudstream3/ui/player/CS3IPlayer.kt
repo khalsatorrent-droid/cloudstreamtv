@@ -1079,8 +1079,23 @@ class CS3IPlayer : IPlayer {
          * TV stick the audio clock (passthrough most of all) drifts against that, so the player
          * drops a frame to catch up every few seconds. Amazon recommends it for 4K
          */
+        /**
+         * "Standard playback engine" (TV, on by default). NuvioTV plays the same 4K files
+         * smoothly on a Fire TV with media3 as it comes: its own buffering and mkv extractor,
+         * OkHttp, no tunneling. This app used Cronet, CloudStream's copy of the mkv extractor
+         * and tuned buffering, and the picture held for a moment now and then. On, the player
+         * is set up like NuvioTV's default. Off, the CloudStream TV tuning is used.
+         */
+        fun useStandardEngine(context: Context): Boolean {
+            if (isLayout(PHONE)) return false
+            return PreferenceManager.getDefaultSharedPreferences(context)
+                .getBoolean(context.getString(R.string.standard_engine_key), true)
+        }
+
         private fun wantsTunneling(context: Context): Boolean {
             if (!isLayout(TV or EMULATOR)) return false
+            // The standard engine plays like NuvioTV's default, which does not tunnel
+            if (useStandardEngine(context)) return false
             return PreferenceManager.getDefaultSharedPreferences(context)
                 .getBoolean(context.getString(R.string.tunneled_playback_key), true)
         }
@@ -1325,7 +1340,9 @@ class CS3IPlayer : IPlayer {
                     // busy stick (download, mkv parsing, a collection) the picture holds and
                     // then rushes to catch up with the sound. Give it the highest priority
                     // Android allows for media, above the loader threads
-                    if (!isLayout(PHONE)) setPlaybackLooper(tvPlaybackThread.looper)
+                    if (!isLayout(PHONE) && !useStandardEngine(context)) {
+                        setPlaybackLooper(tvPlaybackThread.looper)
+                    }
                 }
                 .setMediaSourceFactory(
                     DefaultMediaSourceFactory(context).setLiveTargetOffsetMs(
@@ -1513,7 +1530,13 @@ class CS3IPlayer : IPlayer {
                 // Allows any seeking to be +- 0.3s to allow for faster seeking
                 .setSeekParameters(SeekParameters(toleranceBeforeUs, toleranceAfterUs))
                 .setLoadControl(
-                    DefaultLoadControl.Builder()
+                    if (useStandardEngine(context)) {
+                        // Media3's own buffering, what NuvioTV uses by default and plays 4K
+                        // smoothly with on the same stick, with its short back buffer
+                        DefaultLoadControl.Builder()
+                            .setBackBuffer(1_500, true)
+                            .build()
+                    } else DefaultLoadControl.Builder()
                         .setTargetBufferBytes(
                             if (cacheSize <= 0) {
                                 automaticTargetBufferBytes()
@@ -1553,8 +1576,13 @@ class CS3IPlayer : IPlayer {
 
         // Because "Java rules" the media3 team hates to do open classes so we have to copy paste the entire thing to add a custom extractor
         // This includes the updated MKV extractor that enabled seeking in formats where the seek information is at the back of the file
-        val extractorFactor = UpdatedDefaultExtractorsFactory()
-            .setFragmentedMp4ExtractorFlags(FragmentedMp4Extractor.FLAG_MERGE_FRAGMENTED_SIDX)
+        val extractorFactor: androidx.media3.extractor.ExtractorsFactory =
+            if (useStandardEngine(context)) {
+                // Standard engine: media3's own extractors, mkv included
+                androidx.media3.extractor.DefaultExtractorsFactory()
+                    .setFragmentedMp4ExtractorFlags(FragmentedMp4Extractor.FLAG_MERGE_FRAGMENTED_SIDX)
+            } else UpdatedDefaultExtractorsFactory()
+                .setFragmentedMp4ExtractorFlags(FragmentedMp4Extractor.FLAG_MERGE_FRAGMENTED_SIDX)
 
         // Create an online connection with cache for all online sources
         val dataSourceFactory = if (onlineSource == null) {
@@ -2291,7 +2319,9 @@ class CS3IPlayer : IPlayer {
             val onlineSourceFactory =
                 createVideoSource(
                     link = link,
-                    engine = tryCreateEngine(context, simpleCacheSize),
+                    // The standard engine downloads over OkHttp, like NuvioTV, not Cronet
+                    engine = if (useStandardEngine(context)) null
+                    else tryCreateEngine(context, simpleCacheSize),
                     interceptor = interceptor
                 )
 

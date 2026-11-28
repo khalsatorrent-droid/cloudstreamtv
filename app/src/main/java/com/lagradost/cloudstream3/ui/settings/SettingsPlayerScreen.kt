@@ -210,6 +210,13 @@ object SettingsPlayerScreen : SearchableSettings {
                         icon = painterResource(R.drawable.ic_baseline_speed_24),
                     ),
                     Preference.PreferenceItem.SwitchPreference(
+                        preference = settings.player.standardEngine,
+                        enabled = isLayout(TV or EMULATOR),
+                        title = stringResource(R.string.standard_engine_settings),
+                        subtitle = stringResource(R.string.standard_engine_settings_des),
+                        icon = painterResource(R.drawable.ic_baseline_speed_24),
+                    ),
+                    Preference.PreferenceItem.SwitchPreference(
                         preference = settings.player.dolbyVisionAsHdr10,
                         enabled = isLayout(TV or EMULATOR),
                         title = stringResource(R.string.dolby_vision_as_hdr10_settings),
