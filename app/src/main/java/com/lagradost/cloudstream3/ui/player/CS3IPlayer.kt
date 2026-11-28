@@ -778,6 +778,14 @@ class CS3IPlayer : IPlayer {
         private const val MAX_AUTOMATIC_TARGET_BUFFER_BYTES = 400L * 1024L * 1024L
         private const val TV_HEAP_RESERVE_BYTES = 176L * 1024L * 1024L
 
+        /** Playback thread for TV, shared by every player and kept for the life of the app */
+        private val tvPlaybackThread by lazy {
+            android.os.HandlerThread(
+                "ExoPlayer:PlaybackTv",
+                android.os.Process.THREAD_PRIORITY_URGENT_AUDIO
+            ).apply { start() }
+        }
+
         /** Measured frame rate by file, see VideoFrameRateProbe. Kept small */
         private val measuredFrameRates = object : LinkedHashMap<String, Float>(16, 0.75f, true) {
             override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, Float>?) =
@@ -1311,6 +1319,14 @@ class CS3IPlayer : IPlayer {
     ): ExoPlayer {
         val exoPlayerBuilder =
             ExoPlayer.Builder(context)
+                .apply {
+                    // TV: the playback thread feeds the video decoder. With tunneling the
+                    // decoder holds only a few frames, so when this thread misses its turn on a
+                    // busy stick (download, mkv parsing, a collection) the picture holds and
+                    // then rushes to catch up with the sound. Give it the highest priority
+                    // Android allows for media, above the loader threads
+                    if (!isLayout(PHONE)) setPlaybackLooper(tvPlaybackThread.looper)
+                }
                 .setMediaSourceFactory(
                     DefaultMediaSourceFactory(context).setLiveTargetOffsetMs(
                         PREFERRED_LIVE_OFFSET
