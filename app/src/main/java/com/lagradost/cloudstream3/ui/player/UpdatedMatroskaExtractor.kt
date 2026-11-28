@@ -49,6 +49,7 @@ import androidx.media3.common.util.ParsableByteArray
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.common.util.Util
 import androidx.media3.container.DolbyVisionConfig
+import com.lagradost.cloudstream3.ui.player.VideoFrameRateProbe
 import com.lagradost.cloudstream3.ui.settings.Globals.PHONE
 import com.lagradost.cloudstream3.ui.settings.Globals.isLayout
 import androidx.media3.container.NalUnitUtil
