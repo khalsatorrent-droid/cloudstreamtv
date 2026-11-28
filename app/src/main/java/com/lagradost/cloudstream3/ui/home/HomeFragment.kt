@@ -24,6 +24,7 @@ import androidx.core.view.isInvisible
 import androidx.core.view.isVisible
 import androidx.fragment.app.activityViewModels
 import androidx.preference.PreferenceManager
+import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.lagradost.cloudstream3.plugins.PluginManager
 import com.lagradost.cloudstream3.CloudStreamApp.Companion.getActivity
@@ -77,6 +78,7 @@ import com.lagradost.cloudstream3.utils.BackPressedCallbackHelper
 import com.lagradost.cloudstream3.utils.BackPressedCallbackHelper.attachBackPressedCallback
 import com.lagradost.cloudstream3.utils.BackPressedCallbackHelper.detachBackPressedCallback
 import com.lagradost.cloudstream3.utils.Coroutines.ioSafe
+import com.lagradost.cloudstream3.utils.Coroutines.main
 import com.lagradost.cloudstream3.utils.DataStoreHelper
 import com.lagradost.cloudstream3.utils.EmptyEvent
 import com.lagradost.cloudstream3.utils.SubtitleHelper.getFlagFromIso
@@ -229,33 +231,64 @@ class HomeFragment : BaseFragment<FragmentHomeBinding>(
                     hasNext = expand.hasNext
                 }
 
-            binding.homeExpandedRecycler.addOnScrollListener(object :
-                RecyclerView.OnScrollListener() {
-                var expandCount = 0
-                val name = expand.list.name
-
-                override fun onScrollStateChanged(recyclerView: RecyclerView, newState: Int) {
-                    super.onScrollStateChanged(recyclerView, newState)
-
-                    val adapter = recyclerView.adapter
-                    if (adapter !is SearchAdapter) return
-
-                    val count = adapter.itemCount
-                    val currentHasNext = adapter.hasNext
-                    //!recyclerView.canScrollVertically(1)
-                    if (!recyclerView.isRecyclerScrollable() && currentHasNext && expandCount != count) {
-                        expandCount = count
-                        ioSafe {
-                            expandCallback?.invoke(name)?.let { newExpand ->
-                                (recyclerView.adapter as? SearchAdapter?)?.apply {
+            // Loads the next page whenever the end of the grid comes close. It used to check only
+            // when a scroll ended, so a first page that did not fill the screen, or moving down
+            // with the remote onto the last row, never asked for more and the grid stopped there
+            val name = expand.list.name
+            var loadingMore = false
+            var lastRequestedCount = -1
+            val recycler = binding.homeExpandedRecycler
+            fun loadMoreIfNeeded() {
+                val adapter = recycler.adapter as? SearchAdapter ?: return
+                if (loadingMore || !adapter.hasNext || expandCallback == null) return
+                val count = adapter.itemCount
+                if (count == lastRequestedCount) return
+                val lastVisible =
+                    (recycler.layoutManager as? LinearLayoutManager)?.findLastVisibleItemPosition()
+                        ?: return
+                // About three rows ahead, so the next page is there before the remote gets there
+                val ahead = recycler.spanCount.coerceAtLeast(1) * 3
+                if (lastVisible != RecyclerView.NO_POSITION && lastVisible < count - ahead) return
+                loadingMore = true
+                lastRequestedCount = count
+                ioSafe {
+                    try {
+                        expandCallback.invoke(name)?.let { newExpand ->
+                            main {
+                                (recycler.adapter as? SearchAdapter)?.apply {
                                     hasNext = newExpand.hasNext
-                                    submitList(newExpand.list.list)
-                                }
+                                    submitList(newExpand.list.list) {
+                                        loadingMore = false
+                                        // The new page may still not reach the end of the screen
+                                        recycler.post { loadMoreIfNeeded() }
+                                    }
+                                } ?: run { loadingMore = false }
                             }
-                        }
+                        } ?: run { loadingMore = false }
+                    } catch (t: Throwable) {
+                        loadingMore = false
+                        throw t
                     }
                 }
+            }
+
+            recycler.addOnScrollListener(object : RecyclerView.OnScrollListener() {
+                override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
+                    loadMoreIfNeeded()
+                }
+
+                override fun onScrollStateChanged(recyclerView: RecyclerView, newState: Int) {
+                    loadMoreIfNeeded()
+                }
             })
+            // Views of the last rows are laid out when the remote moves onto them, even when
+            // nothing scrolls
+            recycler.addOnChildAttachStateChangeListener(object :
+                RecyclerView.OnChildAttachStateChangeListener {
+                override fun onChildViewAttachedToWindow(view: View) = loadMoreIfNeeded()
+                override fun onChildViewDetachedFromWindow(view: View) = Unit
+            })
+            recycler.post { loadMoreIfNeeded() }
 
             val spanListener = Runnable {
                 binding.homeExpandedRecycler.spanCount = context.getSpanCount(item.isHorizontalImages)
