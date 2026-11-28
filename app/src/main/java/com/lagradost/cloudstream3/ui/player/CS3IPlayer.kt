@@ -634,6 +634,8 @@ class CS3IPlayer : IPlayer {
         //simpleCache?.release()
 
         exoPlayer = null
+        // The probe is static, it must not keep this player (and so its buffer) alive
+        VideoFrameRateProbe.listener = null
         event(PlayerAttachedEvent(null))
         //simpleCache = null
     }
@@ -668,12 +670,6 @@ class CS3IPlayer : IPlayer {
         releasePlayer()
     }
 
-    /**
-     * The TV blanks the picture and resyncs HDMI audio while it changes refresh rate. Playing on
-     * through that loses the first seconds of picture and sound, and the audio reset shows up
-     * as buffering. So playback waits until the display reports the new mode (or a few seconds
-     * have passed) and then continues.
-     */
     /** Text of the playback stats overlay, see "Show playback stats" in the player settings */
     @Suppress("DEPRECATION")
     fun playbackStats(display: android.view.Display?): String? {
@@ -706,9 +702,17 @@ class CS3IPlayer : IPlayer {
         }
     }
 
+    /**
+     * The TV blanks the picture and resyncs HDMI audio while it changes refresh rate. Playing on
+     * through that loses the first seconds of picture and sound, and the audio reset shows up
+     * as buffering. So playback waits until the display reports the new mode (or a few seconds
+     * have passed) and then continues.
+     */
     fun holdForDisplaySwitch(context: Context, onDone: () -> Unit = {}) {
-        val held = exoPlayer ?: return onDone()
-        if (!held.playWhenReady) return onDone()
+        val player = exoPlayer ?: return onDone()
+        if (!player.playWhenReady) return onDone()
+        // Weak: a player closed during the wait must not stay in memory with its buffer
+        val heldRef = java.lang.ref.WeakReference(player)
         val displayManager = context.getSystemService(DisplayManager::class.java) ?: return onDone()
         val handler = Handler(Looper.getMainLooper())
         var finished = false
@@ -718,7 +722,8 @@ class CS3IPlayer : IPlayer {
             finished = true
             displayManager.unregisterDisplayListener(listener)
             // The player may have been released or replaced while waiting
-            if (exoPlayer === held && !held.playWhenReady) held.playWhenReady = true
+            val held = heldRef.get()
+            if (held != null && exoPlayer === held && !held.playWhenReady) held.playWhenReady = true
             onDone()
         }
         listener = object : DisplayManager.DisplayListener {
@@ -731,7 +736,7 @@ class CS3IPlayer : IPlayer {
             override fun onDisplayAdded(displayId: Int) = Unit
             override fun onDisplayRemoved(displayId: Int) = Unit
         }
-        held.playWhenReady = false
+        player.playWhenReady = false
         displayManager.registerDisplayListener(listener, handler)
         handler.postDelayed(resume, DISPLAY_SWITCH_TIMEOUT_MS)
     }
@@ -755,7 +760,7 @@ class CS3IPlayer : IPlayer {
         private const val DISPLAY_SETTLE_MS = 700L
         private const val DISPLAY_SWITCH_TIMEOUT_MS = 4000L
         private const val MAX_AUTOMATIC_TARGET_BUFFER_BYTES = 400L * 1024L * 1024L
-        private const val TV_HEAP_RESERVE_BYTES = 128L * 1024L * 1024L
+        private const val TV_HEAP_RESERVE_BYTES = 160L * 1024L * 1024L
 
         /** TV: always keep at least this much video loaded ahead (as far as memory allows) */
         private const val TV_MIN_BUFFER_MS = 30_000
@@ -775,9 +780,10 @@ class CS3IPlayer : IPlayer {
             val maxHeap = Runtime.getRuntime().maxMemory()
             if (!isLayout(PHONE)) {
                 // TV: the read ahead is what rides out a slow moment of the server or Wi-Fi, so
-                // it gets most of the heap. 30 s of a 4K remux at 80 Mbps is about 300 MB. The
-                // rest of the app keeps at least 128 MB so the buffer can never run it out
-                return (maxHeap * 3 / 5)
+                // it gets close to half the heap (30 s up to about 45 Mbps on a 384 MB heap).
+                // 60% was too much: starting the next video while the last one's buffer was not
+                // collected yet could run the app out of memory. The app keeps 160 MB
+                return (maxHeap * 9 / 20)
                     .coerceAtMost(MAX_AUTOMATIC_TARGET_BUFFER_BYTES)
                     .coerceAtMost(maxHeap - TV_HEAP_RESERVE_BYTES)
                     // A small heap still gets a quarter of it
