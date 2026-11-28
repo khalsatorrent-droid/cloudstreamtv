@@ -75,7 +75,9 @@ class PlaybackDiagnostics(private val player: ExoPlayer) : AnalyticsListener {
         log("stop")
     }
 
-    private fun log(message: String) = Log.i(TAG, "DIAG $message")
+    private fun log(message: String) {
+        Log.i(TAG, "DIAG $message")
+    }
 
     /** A problem: log it with the busiest threads and collections since the last second */
     private fun problem(message: String) {
