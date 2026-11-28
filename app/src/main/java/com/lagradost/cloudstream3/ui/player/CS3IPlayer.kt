@@ -739,6 +739,10 @@ class CS3IPlayer : IPlayer {
             val blockingMs = android.os.Debug.getRuntimeStat("art.gc.blocking-gc-time")
             if (gcCount != null) append("GC $gcCount  blocking $blocking ($blockingMs ms)\n")
             append("Memory ${(runtime.totalMemory() - runtime.freeMemory()) / 1_048_576} of ${runtime.maxMemory() / 1_048_576} MB")
+            if (diagnostics != null) {
+                append("\nRecorder on, problems ${PlaybackDiagnostics.problemCount}")
+                PlaybackDiagnostics.lastProblem?.let { append("\nLast: ${it.take(90)}") }
+            }
         }
     }
 
