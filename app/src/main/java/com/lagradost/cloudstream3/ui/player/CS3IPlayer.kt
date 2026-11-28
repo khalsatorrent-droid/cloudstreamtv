@@ -684,6 +684,9 @@ class CS3IPlayer : IPlayer {
                 append("Video ${f.width}x${f.height} ${f.sampleMimeType?.substringAfter('/') ?: "?"}")
                 f.codecs?.let { append(" $it") }
                 append(if (f.frameRate > 0f) " %.3f fps".format(f.frameRate) else " fps unknown")
+                VideoFrameRateProbe.lastMeasured.takeIf { it > 0f }?.let {
+                    append(" (measured %.3f)".format(it))
+                }
                 f.colorInfo?.let { append(" transfer ${it.colorTransfer}") }
                 append('\n')
             }
@@ -1613,6 +1616,13 @@ class CS3IPlayer : IPlayer {
                 source
             }
         }
+        // A file that states the wrong frame rate (23.976 fps labelled 24) is corrected from its
+        // timestamps, the display then switches to the real rate
+        VideoFrameRateProbe.lastMeasured = 0f
+        VideoFrameRateProbe.listener = if (FrameRateMatcher.isEnabled(context)) {
+            { fps -> event(FrameRateEvent(fps)) }
+        } else null
+
         return exoPlayerBuilder.build().apply {
             if (FrameRateMatcher.isEnabled(context)) {
                 // FrameRateMatcher switches the TV once per video. Media3 would also ask the
