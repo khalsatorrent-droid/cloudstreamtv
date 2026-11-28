@@ -40,6 +40,7 @@ import kotlinx.collections.immutable.toPersistentList
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import com.lagradost.cloudstream3.ui.player.PlaybackDiagnostics
 import java.io.OutputStream
 import java.lang.System.currentTimeMillis
 import java.text.SimpleDateFormat
@@ -129,6 +130,7 @@ fun LogcatDialog(dismiss: () -> Unit) {
                                         writer.write(it.toString())
                                         writer.write("\n\n")
                                     }
+                                    writer.write(PlaybackDiagnostics.historyText())
                                 }
                             dismiss()
                         } catch (t: Throwable) {
@@ -142,7 +144,8 @@ fun LogcatDialog(dismiss: () -> Unit) {
             WhiteButton(text = stringResource(R.string.sort_copy)) {
                 clipboardHelper(
                     txt("Logcat"),
-                    list.value.joinToString(separator = "\n\n") { it.toString() }
+                    list.value.joinToString(separator = "\n\n") { it.toString() } +
+                            "\n\n" + PlaybackDiagnostics.historyText()
                 )
             }
             WhiteButton(text = stringResource(R.string.sort_clear)) {

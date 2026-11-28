@@ -538,7 +538,12 @@ class PlayerView @JvmOverloads constructor(
         player = CS3IPlayer()
         // The released buffer is a few hundred MB on TV. Ask for it to be collected now, not
         // while the next video is filling its own buffer
-        Runtime.getRuntime().gc()
+        // Runtime.gc() waits for the whole collection (about a second here), so not on the
+        // main thread where it froze the screen after leaving the player
+        Thread({ Runtime.getRuntime().gc() }, "ReleaseGc").apply {
+            priority = Thread.MIN_PRIORITY
+            start()
+        }
 
         // The activity window outlives the player, put the display back to the user's mode
         FrameRateMatcher.reset(context.getActivity())

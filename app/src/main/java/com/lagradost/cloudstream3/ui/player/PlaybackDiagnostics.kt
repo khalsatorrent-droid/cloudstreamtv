@@ -33,6 +33,34 @@ class PlaybackDiagnostics(private val player: ExoPlayer) : AnalyticsListener {
         private const val CLOCK_JUMP_MS = 80L
         private const val THREAD_LAG_MS = 50L
         private const val MAIN_LAG_MS = 100L
+        private const val HISTORY_LINES = 600
+
+        /**
+         * The system log on Fire TV is small and drops this app's lines when it fills up, so the
+         * lines are also kept here and added to the logcat export
+         */
+        private val history = ArrayDeque<String>()
+        private val timeFormat = java.text.SimpleDateFormat("HH:mm:ss.SSS", java.util.Locale.US)
+
+        @Volatile
+        var problemCount = 0
+            private set
+
+        @Volatile
+        var lastProblem: String? = null
+            private set
+
+        fun record(line: String) {
+            synchronized(history) {
+                history.addLast("${timeFormat.format(java.util.Date())} $line")
+                while (history.size > HISTORY_LINES) history.removeFirst()
+            }
+        }
+
+        /** Everything recorded so far, for the logcat export */
+        fun historyText(): String = synchronized(history) {
+            if (history.isEmpty()) "" else "Playback diagnostics\n" + history.joinToString("\n")
+        }
     }
 
     private val main = Handler(Looper.getMainLooper())
@@ -77,6 +105,7 @@ class PlaybackDiagnostics(private val player: ExoPlayer) : AnalyticsListener {
 
     private fun log(message: String) {
         Log.i(TAG, "DIAG $message")
+        record(message)
     }
 
     /** A problem: log it with the busiest threads and collections since the last second */
@@ -84,6 +113,8 @@ class PlaybackDiagnostics(private val player: ExoPlayer) : AnalyticsListener {
         val gc = gcCounts()
         val gcText = "gc +${gc.first - lastGc.first} blocking +${gc.second - lastGc.second} (+${gc.third - lastGc.third} ms)"
         lastGc = gc
+        problemCount++
+        lastProblem = message
         log("$message | $gcText | buffer ${(player.bufferedPosition - player.currentPosition) / 1000f}s | cpu ${busiestThreads()}")
     }
 
