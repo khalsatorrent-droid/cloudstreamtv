@@ -2,6 +2,8 @@
 
 A fork of [CloudStream](https://github.com/recloudstream/cloudstream), tuned for the **Amazon Fire TV Stick 4K / 4K Plus / 4K Max** (Fire OS 8). It is the same app with the same extensions, made smoother on a TV stick: 4K HDR and Dolby Vision playback, remote-friendly navigation, and fixes that matter on a slower device.
 
+> **🤖 Built with AI:** this fork and its Fire TV changes were made with the help of AI (Claude by Anthropic), which wrote the code, commits and pull requests in this repo. Every change is built and unit tested by the release workflow before it is published, but it has not been reviewed the way the official CloudStream code is.
+
 **⚠️ Warning: By default, this app doesn't provide any video sources; you have to install extensions to add functionality to the app.**
 
 <p align="left"><a href="https://github.com/khalsatorrent-droid/cloudstreamtv/releases/download/pre-release/cloudstream-firestick-4k.apk"><img src=".github/images/download-cloudstream-pre.png" alt="Download CloudStream TV for Fire TV" width=430/></a></p>
