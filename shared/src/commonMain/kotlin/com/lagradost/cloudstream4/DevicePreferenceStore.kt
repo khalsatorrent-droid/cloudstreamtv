@@ -180,6 +180,7 @@ class PlayerPreferences(preferences: PreferenceStore) {
     val tunneledPlayback = preferences.getBoolean("tunneled_playback_key", true)
     val showPlaybackStats = preferences.getBoolean("show_playback_stats_key", false)
     val dolbyVisionAsHdr10 = preferences.getBoolean("dolby_vision_as_hdr10_key", false)
+    val standardEngine = preferences.getBoolean("standard_engine_key", true)
     val extraBrightnessEnabled = preferences.getBoolean("extra_brightness_enabled", false)
     val swipeHorizontalEnabled = preferences.getBoolean("swipe_enabled_key", true)
     val swipeVerticalEnabled = preferences.getBoolean("swipe_vertical_enabled_key", true)

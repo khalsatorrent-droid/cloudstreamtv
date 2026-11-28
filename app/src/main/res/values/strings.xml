@@ -377,6 +377,8 @@
     <string name="tunneled_playback_settings">Tunneled playback</string>
     <string name="show_playback_stats_settings">Show playback stats</string>
     <string name="dolby_vision_as_hdr10_settings">Play Dolby Vision as HDR10</string>
+    <string name="standard_engine_settings">Standard playback engine</string>
+    <string name="standard_engine_settings_des">Plays the way NuvioTV does by default: media3 buffering and file reading, OkHttp, no tunneled playback. Smoothest for 4K on a Fire TV. Turn off for the CloudStream TV tuning (tunneled playback, measured frame rate, Dolby Vision options)</string>
     <string name="dolby_vision_as_hdr10_settings_des">For Dolby Vision profile 8 videos (most streaming releases). The picture stays HDR with correct colours, without the Dolby Vision processing of every frame, which is lighter for the TV stick. Applies to mkv files</string>
     <string name="show_playback_stats_settings_des">Frame rate, TV refresh rate, dropped frames, buffer and memory in a corner of the player, to find the cause of stutter</string>
     <string name="tunneled_playback_settings_des">The TV hardware keeps video in step with the audio, which stops the small stutter every few seconds in 4K. Turn off if a video plays without picture or sound</string>

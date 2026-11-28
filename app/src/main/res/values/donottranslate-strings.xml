@@ -97,6 +97,7 @@
     <string name="tunneled_playback_key">tunneled_playback_key</string>
     <string name="show_playback_stats_key">show_playback_stats_key</string>
     <string name="dolby_vision_as_hdr10_key">dolby_vision_as_hdr10_key</string>
+    <string name="standard_engine_key">standard_engine_key</string>
     <string name="manual_update_plugins_key">manual_update_plugins</string>
     <string name="legal_notice_key">legal_notice_key</string>
     <string name="speedup_key">speedup_key</string>
